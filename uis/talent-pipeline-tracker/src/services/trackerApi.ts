@@ -1,4 +1,5 @@
 import { API_URL } from "@/lib/constants";
+import { apiRequest } from "./session";
 import type {
   CandidateCreateInput,
   CandidateListQuery,
@@ -9,33 +10,7 @@ import type {
 } from "@/types/tracker";
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    let message = "Unexpected API error";
-
-    try {
-      const payload = (await response.json()) as { detail?: Array<{ msg?: string }> };
-      message = payload?.detail?.[0]?.msg ?? message;
-    } catch {
-      message = response.statusText || message;
-    }
-
-    throw new Error(message);
-  }
-
-  if (response.status === 204) {
-    return undefined as T;
-  }
-
-  return (await response.json()) as T;
+  return apiRequest<T>(`${API_URL}${path}`, init);
 }
 
 function toQueryString(query: CandidateListQuery): string {

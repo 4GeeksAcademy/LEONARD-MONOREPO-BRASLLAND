@@ -23,3 +23,5 @@ build/
 !.env.example
 data/auth.json
 services/api/.venv/
+uis/talent-pipeline-tracker/test-results/
+uis/talent-pipeline-tracker/playwright-report/
