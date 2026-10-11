@@ -2,11 +2,13 @@ import '@fontsource/dm-sans/latin-400.css';
 import '@fontsource/dm-sans/latin-500.css';
 import '@fontsource/dm-sans/latin-600.css';
 import '@fontsource/space-grotesk/latin-600.css';
+import { requireSession, sessionFetch } from './auth.js';
 import {
   createIcons, Flame, ChartNoAxesCombined, MapPin, ChevronRight, Download,
   FileSpreadsheet, FolderOpen, ShieldCheck, ArrowRight, ChartColumn, TriangleAlert, CircleCheck, Truck,
 } from 'lucide';
 
+if (await requireSession()) {
 createIcons({ icons: { Flame, ChartNoAxesCombined, MapPin, ChevronRight, Download,
   FileSpreadsheet, FolderOpen, ShieldCheck, ArrowRight, ChartColumn, TriangleAlert, CircleCheck, Truck } });
 
@@ -209,7 +211,7 @@ form.addEventListener('submit', async (event) => {
   const payload = new FormData();
   payload.append('file', selectedFile);
   try {
-    const response = await fetch('/api/incidents/analyze', { method: 'POST', body: payload });
+    const response = await sessionFetch('/api/incidents/analyze', { method: 'POST', body: payload });
     if (!response.ok) throw new Error(await errorMessage(response));
     renderSummary(await response.json());
     element('progress').textContent = 'Analysis complete.';
@@ -225,7 +227,7 @@ downloadButton.addEventListener('click', async () => {
   showError('');
   downloadButton.disabled = true;
   try {
-    const response = await fetch('/api/incidents/results/export');
+    const response = await sessionFetch('/api/incidents/results/export');
     if (!response.ok) throw new Error(await errorMessage(response));
     const url = URL.createObjectURL(await response.blob());
     const anchor = document.createElement('a');
@@ -241,3 +243,4 @@ downloadButton.addEventListener('click', async () => {
     downloadButton.disabled = false;
   }
 });
+}

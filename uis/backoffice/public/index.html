@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="styles.css" />
     <script type="module" src="app.js"></script>
   </head>
-  <body>
+  <body hidden>
     <a class="skip-link" href="#main-content">Skip to content</a>
     <aside class="sidebar">
       <a class="brand" href="/backoffice/" aria-label="Brasaland Digital home">
@@ -20,6 +20,9 @@
       <nav aria-label="Application menu">
         <a href="/backoffice/" class="nav-link active" aria-current="page"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i>Incident analysis<span class="nav-indicator"></span></a>
         <a href="/backoffice/suppliers/" class="nav-link"><i data-lucide="truck" aria-hidden="true"></i>Supplier directory</a>
+        <a href="/" class="nav-link">Talent pipeline</a>
+        <a href="/account/profile" class="nav-link">My profile</a>
+        <button id="logout" class="nav-link" type="button">Log out</button>
       </nav>
       <div class="sidebar-bottom">
         <div class="restaurant-image" role="img" aria-label="Grilled food on a restaurant table"></div>

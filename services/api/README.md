@@ -22,10 +22,19 @@ tokens. The root `.env` is ignored by Git. Keep the secret random, at least
 variables override `.env`; expiry must be a positive number of minutes.
 `bcrypt==4.0.1` is pinned for compatibility with `passlib[bcrypt]`.
 
-Open `http://localhost:8012/backoffice/`. API documentation is available at
-`http://localhost:8012/docs`. Build the frontend before starting the server.
-There is no need to start a second frontend server. If port 8012 is occupied,
-choose another port and open that URL instead.
+API documentation is available at `http://localhost:8012/docs`. Build the
+backoffice before starting the server, then start the existing Next.js frontend:
+
+```bash
+npm --prefix uis/talent-pipeline-tracker ci
+npm --prefix uis/talent-pipeline-tracker run dev -- --port 3001
+```
+
+Register or log in at `http://localhost:3001/login` and open the backoffice at
+`http://localhost:3001/backoffice/`. Next.js proxies static assets and protected
+API calls onto the same origin as its stored JWT; do not open the internal UI
+directly on the API port. If the API port changes, set `AUTH_API_URL` in the
+Next.js environment. See [frontend authentication](../../uis/talent-pipeline-tracker/README.md).
 
 ## Endpoints
 
@@ -74,7 +83,8 @@ The application-level dependency protects **every API route** by default, with
 only registration and login exempted. This includes all six supplier routes,
 both incident routes, `/health`, and `/`. Interactive docs, OpenAPI, and static
 backoffice assets remain public; static assets do not grant access to API data.
-The frontend will need to send bearer tokens in subsequent work.
+AUTH-02 integrates bearer-token login, registration, profile editing, logout,
+and protected views into the existing Next.js app and proxied backoffice.
 
 Users and profiles live exclusively in named TinyDB tables in `data/auth.json`
 (override with `AUTH_DB_PATH`). User IDs are stable UUID strings; JWTs carry both

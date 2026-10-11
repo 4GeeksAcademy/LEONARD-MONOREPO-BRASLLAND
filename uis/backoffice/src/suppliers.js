@@ -2,8 +2,10 @@ import '@fontsource/dm-sans/latin-400.css';
 import '@fontsource/dm-sans/latin-500.css';
 import '@fontsource/dm-sans/latin-600.css';
 import '@fontsource/space-grotesk/latin-600.css';
+import { requireSession, sessionFetch } from './auth.js';
 import { createIcons, Flame, ChartNoAxesCombined, MapPin, ChevronRight, Truck, Plus, X, Check, Save, Pause, Play, RefreshCw } from 'lucide';
 
+if (await requireSession()) {
 const icons = { Flame, ChartNoAxesCombined, MapPin, ChevronRight, Truck, Plus, X, Check, Save, Pause, Play, RefreshCw };
 const element = (identifier) => document.getElementById(identifier);
 const categories = {
@@ -22,7 +24,7 @@ function showError(identifier, message = '') {
 }
 
 async function api(url, options = {}) {
-  const response = await fetch(url, { ...options, headers: { 'Content-Type': 'application/json' } });
+  const response = await sessionFetch(url, options);
   const body = await response.json();
   if (!response.ok) {
     const detail = Array.isArray(body.detail)
@@ -190,3 +192,4 @@ form.addEventListener('submit', async (event) => {
 
 createIcons({ icons });
 load();
+}
