@@ -1,5 +1,4 @@
 import io
-import secrets
 import sys
 import threading
 import time
@@ -7,7 +6,7 @@ from collections import OrderedDict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -16,6 +15,10 @@ ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(ROOT / "packages"))
 
 from incident_analysis import AnalysisError, RULES, analyze_csv, results_csv
+from services.api.auth import (
+    CurrentUser, auth_router, configure_auth, open_auth_database, profiles_router,
+    public_router, require_authentication, users_router,
+)
 from services.api.database import open_database
 from services.api.routers.suppliers import router as suppliers_router
 from services.api.seed import seed_database
@@ -24,7 +27,6 @@ from services.api.seed import seed_database
 MAX_UPLOAD_BYTES = 256 * 1024 * 1024
 SESSION_TTL = 3600
 MAX_SESSIONS = 128
-COOKIE_NAME = "brasaland_analysis"
 analyses = OrderedDict()
 cache_lock = threading.Lock()
 
@@ -57,14 +59,23 @@ class UploadLimitMiddleware:
 
 @asynccontextmanager
 async def lifespan(app):
-    with open_database() as database:
+    configure_auth(app)
+    with open_database() as database, open_auth_database() as auth_database:
         seed_database(database)
         app.state.suppliers_db = database
+        app.state.auth_db = auth_database
         yield
 
 
-app = FastAPI(title="Brasaland Digital API", version="1.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="Brasaland Digital API", version="1.1.0", lifespan=lifespan,
+    dependencies=[Depends(require_authentication)],
+)
 app.add_middleware(UploadLimitMiddleware)
+app.include_router(public_router)
+app.include_router(auth_router)
+app.include_router(users_router)
+app.include_router(profiles_router)
 app.include_router(suppliers_router)
 
 
@@ -81,7 +92,7 @@ def health():
 
 
 @app.post("/api/incidents/analyze")
-def analyze_incidents(request: Request, response: Response, file: UploadFile = File(...)):
+def analyze_incidents(current: CurrentUser, response: Response, file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(415, "Select a .csv file encoded as UTF-8.")
     source = io.TextIOWrapper(file.file, encoding="utf-8-sig", newline="")
@@ -93,27 +104,21 @@ def analyze_incidents(request: Request, response: Response, file: UploadFile = F
         source.detach()
     with cache_lock:
         expire_cache()
-        existing = request.cookies.get(COOKIE_NAME)
-        token = existing if existing in analyses else secrets.token_urlsafe(32)
-        analyses[token] = (time.monotonic(), summary)
-        analyses.move_to_end(token)
+        analyses[current.id] = (time.monotonic(), summary)
+        analyses.move_to_end(current.id)
         while len(analyses) > MAX_SESSIONS:
             analyses.popitem(last=False)
-    response.set_cookie(
-        COOKIE_NAME, token, max_age=SESSION_TTL, httponly=True,
-        samesite="strict", secure=request.url.scheme == "https", path="/api/incidents",
-    )
     response.headers["Cache-Control"] = "no-store"
     return {**summary, "rule_labels": RULES}
 
 
 @app.get("/api/incidents/results/export")
-def export_results(request: Request):
+def export_results(current: CurrentUser):
     with cache_lock:
         expire_cache()
-        cached = analyses.get(request.cookies.get(COOKIE_NAME))
+        cached = analyses.get(current.id)
     if cached is None:
-        raise HTTPException(404, "No analysis is available for this browser. Upload a CSV first; results expire after one hour.")
+        raise HTTPException(404, "No analysis is available for this user. Upload a CSV first; results expire after one hour.")
     return Response(
         content=results_csv(cached[1]), media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": 'attachment; filename="results.csv"', "Cache-Control": "no-store"},
