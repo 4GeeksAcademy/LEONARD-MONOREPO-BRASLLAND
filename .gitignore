@@ -18,3 +18,8 @@ uis/backoffice/public/suppliers.css
 data/suppliers.json
 services/api/*.egg-info/
 build/
+.env
+.env.*
+!.env.example
+data/auth.json
+services/api/.venv/
