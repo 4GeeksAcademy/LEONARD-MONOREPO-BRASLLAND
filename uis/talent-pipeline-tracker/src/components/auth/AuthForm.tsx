@@ -2,14 +2,20 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent } from "react";
+import { useState, useSyncExternalStore, type FormEvent } from "react";
 import { register, signIn } from "@/services/authApi";
 import { ApiError, type FieldErrors } from "@/services/session";
 import { useHydrated } from "@/hooks/useHydrated";
 
+const subscribeToLocation = () => () => undefined;
+const resetSuccessSnapshot = () => typeof window !== "undefined"
+  && new URLSearchParams(window.location.search).get("password-reset") === "success";
+const serverResetSuccessSnapshot = () => false;
+
 export function AuthForm({ registration = false }: { registration?: boolean }) {
   const router = useRouter();
   const hydrated = useHydrated();
+  const resetSuccess = useSyncExternalStore(subscribeToLocation, resetSuccessSnapshot, serverResetSuccessSnapshot);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [fields, setFields] = useState<FieldErrors>({});
@@ -57,6 +63,7 @@ export function AuthForm({ registration = false }: { registration?: boolean }) {
     <section className="auth-content">
       <p className="auth-brand">Brasaland / People and Culture</p>
       <h1>{registration ? "Create account" : "Log in"}</h1>
+      {resetSuccess && <p className="auth-success" role="status">Your password was reset. You can sign in with your new password.</p>}
       <form method="post" onSubmit={submit} aria-busy={busy}>
         <fieldset disabled={busy || !hydrated}>
           {input("email", "Email", "email")}
@@ -67,6 +74,7 @@ export function AuthForm({ registration = false }: { registration?: boolean }) {
         </fieldset>
       </form>
       <Link className="auth-link" href={registration ? "/login" : "/register"}>{registration ? "Already registered? Log in" : "Create an account"}</Link>
+      {!registration && <Link className="auth-link" href="/forgot-password">Forgot your password?</Link>}
     </section>
   </main>;
 }

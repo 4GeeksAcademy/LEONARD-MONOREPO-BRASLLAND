@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
-import { LogOut, UserRound } from "lucide-react";
+import { KeyRound, LogOut, UserRound } from "lucide-react";
 import { getCurrentUser, type CurrentUser } from "@/services/authApi";
 import { endSession, getToken, TOKEN_KEY } from "@/services/session";
 
@@ -12,7 +12,7 @@ export const useCurrentUser = () => useContext(UserContext);
 
 export function AuthBoundary({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const publicRoute = pathname === "/login" || pathname === "/register";
+  const publicRoute = ["/login", "/register", "/forgot-password", "/reset-password"].includes(pathname);
   const [session, setSession] = useState<{ path: string; user?: CurrentUser; error?: string }>();
   const [attempt, setAttempt] = useState(0);
 
@@ -52,6 +52,7 @@ export function AuthBoundary({ children }: { children: React.ReactNode }) {
       <a href="/backoffice/">Incident analysis</a>
       <a href="/backoffice/suppliers/">Suppliers</a>
       <Link href="/account/profile" className="account-control"><UserRound size={16} aria-hidden="true" />My profile</Link>
+      <Link href="/account/change-password" className="account-control"><KeyRound size={16} aria-hidden="true" />Change password</Link>
       <button onClick={endSession} className="account-control" title="Log out"><LogOut size={16} aria-hidden="true" />Log out</button>
     </nav>
     {children}

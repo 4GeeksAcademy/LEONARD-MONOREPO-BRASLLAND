@@ -125,6 +125,71 @@ test("registration shows API field errors and duplicate email", async ({ page })
   await expect(page.locator("#phone-error")).toHaveText("Invalid phone");
 });
 
+test("forgot-password always confirms and disables the submitted form", async ({ page }) => {
+  await page.goto("/login");
+  await page.getByRole("link", { name: "Forgot your password?" }).click();
+  await expect(page).toHaveURL(/\/forgot-password$/);
+  let requestBody: { email: string } | undefined;
+  await page.route("**/api/backend/auth/forgot-password", async route => {
+    requestBody = route.request().postDataJSON();
+    await route.fulfill({ status: 200, json: { message: "If that address is registered, you'll receive a reset link shortly." } });
+  });
+  await page.getByLabel("Email", { exact: true }).fill("recovery@example.com");
+  await page.getByRole("button", { name: "Send reset link" }).click();
+  await expect(page.getByRole("status")).toHaveText("If that address is registered, you'll receive a reset link shortly.");
+  await expect(page.getByRole("button", { name: "Request sent" })).toBeDisabled();
+  expect(requestBody).toEqual({ email: "recovery@example.com" });
+});
+
+test("reset-password submits the query token and shows the login success notice", async ({ page }) => {
+  let requestBody: { token: string; new_password: string } | undefined;
+  await page.route("**/api/backend/auth/reset-password", async route => {
+    requestBody = route.request().postDataJSON();
+    await route.fulfill({ status: 200, json: { message: "Password has been reset." } });
+  });
+  await page.goto("/reset-password?token=one-time-reset-token");
+  await page.getByLabel("New password", { exact: true }).fill("New-frontend-password");
+  await page.getByLabel("Confirm new password", { exact: true }).fill("New-frontend-password");
+  await page.getByRole("button", { name: "Reset password" }).click();
+  await expect(page).toHaveURL(/\/login\?password-reset=success$/);
+  await expect(page.getByRole("status")).toHaveText("Your password was reset. You can sign in with your new password.");
+  expect(requestBody).toEqual({ token: "one-time-reset-token", new_password: "New-frontend-password" });
+});
+
+test("reset-password reports an invalid token and offers a new link", async ({ page }) => {
+  await page.route("**/api/backend/auth/reset-password", route => route.fulfill({
+    status: 400, json: { detail: "Invalid or expired reset token." },
+  }));
+  await page.goto("/reset-password?token=expired-token-value");
+  await page.getByLabel("New password", { exact: true }).fill("New-frontend-password");
+  await page.getByLabel("Confirm new password", { exact: true }).fill("New-frontend-password");
+  await page.getByRole("button", { name: "Reset password" }).click();
+  await expect(page.getByRole("alert")).toHaveText("Invalid or expired reset token.");
+  await expect(page.getByRole("link", { name: "Request a new reset link" })).toHaveAttribute("href", "/forgot-password");
+});
+
+test("change-password validates confirmation before sending and reports success", async ({ page }) => {
+  const { token } = await seedSession(page);
+  let requestBody: { current_password: string; new_password: string } | undefined;
+  await page.route("**/api/backend/auth/change-password", async route => {
+    requestBody = route.request().postDataJSON();
+    expect(route.request().headers().authorization).toBe(`Bearer ${token}`);
+    await route.fulfill({ status: 200, json: { message: "Password has been changed." } });
+  });
+  await page.goto("/account/change-password");
+  await expect(page.getByRole("link", { name: "Change password" })).toBeVisible();
+  await page.getByLabel("Current password", { exact: true }).fill(password);
+  await page.getByLabel("New password", { exact: true }).fill("Changed-frontend-password");
+  await page.getByLabel("Confirm new password", { exact: true }).fill("Does-not-match");
+  await page.getByRole("button", { name: "Change password" }).click();
+  await expect(page.locator("#confirm_password-error")).toHaveText("Passwords do not match.");
+  expect(requestBody).toBeUndefined();
+  await page.getByLabel("Confirm new password", { exact: true }).fill("Changed-frontend-password");
+  await page.getByRole("button", { name: "Change password" }).click();
+  await expect(page.getByRole("status")).toHaveText("Password changed successfully.");
+  expect(requestBody).toEqual({ current_password: password, new_password: "Changed-frontend-password" });
+});
+
 test("profile protected 401 ends the session", async ({ page }) => {
   await seedSession(page);
   await page.goto("/account/profile");

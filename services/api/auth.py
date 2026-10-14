@@ -1,13 +1,19 @@
 import os
+import hashlib
+import html
+import logging
+import secrets
 from datetime import datetime, timedelta, timezone
 from enum import Enum
 from pathlib import Path
 from threading import Lock
 from typing import Annotated
+from urllib.parse import urlencode
 from uuid import uuid4
 
+import httpx
 from dotenv import load_dotenv
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.hash import bcrypt
@@ -17,6 +23,7 @@ from tinydb import Query, TinyDB
 
 ROOT = Path(__file__).resolve().parents[2]
 auth_lock = Lock()
+logger = logging.getLogger(__name__)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login", auto_error=False)
 public_router = APIRouter()
 users_router = APIRouter(prefix="/users", tags=["Users"])
@@ -64,6 +71,40 @@ class PasswordFields(BaseModel):
         if len(value.encode("utf-8")) > 72:
             raise ValueError("Password must not exceed 72 UTF-8 bytes.")
         return value
+
+
+class ForgotPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    token: str = Field(min_length=32, max_length=200)
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return PasswordFields(password=value).password
+
+
+class ChangePasswordRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    current_password: str = Field(min_length=1, max_length=72)
+    new_password: str = Field(min_length=8, max_length=72)
+
+    @field_validator("current_password")
+    @classmethod
+    def validate_current_password(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must not exceed 72 UTF-8 bytes.")
+        return value
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_new_password(cls, value: str) -> str:
+        return PasswordFields(password=value).password
 
 
 class UserCreate(PasswordFields, ProfileFields):
@@ -132,8 +173,12 @@ def configure_auth(app) -> None:
     expiry = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     if expiry <= 0:
         raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be positive.")
+    reset_expiry = int(os.environ.get("PASSWORD_RESET_EXPIRE_MINUTES", "30"))
+    if not 15 <= reset_expiry <= 60:
+        raise RuntimeError("PASSWORD_RESET_EXPIRE_MINUTES must be between 15 and 60.")
     app.state.jwt_secret = secret
     app.state.token_expiry = expiry
+    app.state.password_reset_expiry = reset_expiry
 
 
 def get_auth_database(request: Request):
@@ -186,7 +231,10 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 def require_authentication(request: Request, database: Database, token: BearerToken):
-    if (request.method, request.url.path) in {("POST", "/users"), ("POST", "/auth/login")}:
+    if (request.method, request.url.path) in {
+        ("POST", "/users"), ("POST", "/auth/login"),
+        ("POST", "/auth/forgot-password"), ("POST", "/auth/reset-password"),
+    }:
         return
     get_current_user(request, database, token)
 
@@ -301,6 +349,104 @@ async def login(request: Request, database: Database):
         request.app.state.jwt_secret, algorithm="HS256",
     )
     return Token(access_token=token)
+
+
+def deliver_password_reset_email(database: TinyDB, user_id: str, email: str, token: str) -> None:
+    token_id = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    try:
+        api_key = os.environ["RESEND_API_KEY"]
+        sender = os.environ["RESEND_FROM_EMAIL"]
+        frontend = os.environ.get("FRONTEND_BASE_URL", "http://localhost:3001").rstrip("/")
+        reset_url = f"{frontend}/reset-password?{urlencode({'token': token})}"
+        response = httpx.post(
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "from": sender,
+                "to": [email],
+                "subject": "Reset your Brasaland password",
+                "html": (
+                    '<div style="font-family:Arial,sans-serif;line-height:1.6;max-width:560px;margin:auto;padding:24px;color:#182c24">'
+                    '<h1 style="font-size:22px">Reset your password</h1>'
+                    '<p>We received a request to reset the password for your account.</p>'
+                    f'<p><a href="{html.escape(reset_url, quote=True)}" style="display:inline-block;padding:12px 18px;background:#176047;color:#fff;text-decoration:none">Choose a new password</a></p>'
+                    f'<p style="overflow-wrap:anywhere">Or open this link: {html.escape(reset_url)}</p>'
+                    f'<p>This link expires in {int(os.environ.get("PASSWORD_RESET_EXPIRE_MINUTES", "30"))} minutes and can only be used once.</p>'
+                    '<p>If you did not request a password reset, you can ignore this email.</p></div>'
+                ),
+                "text": (
+                    "We received a request to reset your Brasaland password. "
+                    f"Open this link to choose a new password: {reset_url}\n\n"
+                    f"This link expires in {int(os.environ.get('PASSWORD_RESET_EXPIRE_MINUTES', '30'))} minutes and can only be used once. "
+                    "If you did not request this, you can ignore this email."
+                ),
+            },
+            timeout=10.0,
+        )
+        response.raise_for_status()
+    except Exception:
+        database.table("password_reset_tokens").remove(Query().id == token_id)
+        logger.exception("Could not send a password reset email for user %s.", user_id)
+
+
+@auth_router.post("/forgot-password", status_code=200)
+def forgot_password(
+    payload: ForgotPasswordRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    database: Database,
+):
+    email = str(payload.email).lower()
+    record = database.table("users").get(Query().email == email)
+    if record is not None:
+        token = secrets.token_urlsafe(32)
+        token_id = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        tokens = database.table("password_reset_tokens")
+        tokens.remove(Query().user_id == record["id"])
+        tokens.insert({
+            "id": token_id,
+            "user_id": record["id"],
+            "expires_at": (datetime.now(timezone.utc) + timedelta(minutes=request.app.state.password_reset_expiry)).isoformat(),
+        })
+        background_tasks.add_task(deliver_password_reset_email, database, record["id"], email, token)
+    return {"message": "If that address is registered, you'll receive a reset link shortly."}
+
+
+@auth_router.post("/reset-password", status_code=200)
+def reset_password(payload: ResetPasswordRequest, database: Database):
+    token_id = hashlib.sha256(payload.token.encode("utf-8")).hexdigest()
+    tokens = database.table("password_reset_tokens")
+    record = tokens.get(Query().id == token_id)
+    if record is None:
+        raise HTTPException(400, "Invalid or expired reset token.")
+    try:
+        expires_at = datetime.fromisoformat(record["expires_at"])
+    except (KeyError, TypeError, ValueError):
+        expires_at = datetime.min.replace(tzinfo=timezone.utc)
+    if expires_at <= datetime.now(timezone.utc):
+        tokens.remove(Query().user_id == record.get("user_id"))
+        raise HTTPException(400, "Invalid or expired reset token.")
+    user_id = record.get("user_id")
+    user = database.table("users").get(Query().id == user_id)
+    if user is None:
+        tokens.remove(Query().user_id == user_id)
+        raise HTTPException(400, "Invalid or expired reset token.")
+    database.table("users").update(
+        {"hashed_password": bcrypt.hash(payload.new_password)}, Query().id == user_id,
+    )
+    tokens.remove(Query().user_id == user_id)
+    return {"message": "Password has been reset."}
+
+
+@auth_router.post("/change-password", status_code=200)
+def change_password(payload: ChangePasswordRequest, current: CurrentUser, database: Database):
+    if not bcrypt.verify(payload.current_password, current.hashed_password):
+        raise HTTPException(400, "Current password is incorrect.")
+    database.table("users").update(
+        {"hashed_password": bcrypt.hash(payload.new_password)}, Query().id == current.id,
+    )
+    database.table("password_reset_tokens").remove(Query().user_id == current.id)
+    return {"message": "Password has been changed."}
 
 
 @users_router.get("", response_model=list[UserRead])

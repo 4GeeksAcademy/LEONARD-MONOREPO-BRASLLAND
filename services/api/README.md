@@ -22,6 +22,23 @@ tokens. The root `.env` is ignored by Git. Keep the secret random, at least
 variables override `.env`; expiry must be a positive number of minutes.
 `bcrypt==4.0.1` is pinned for compatibility with `passlib[bcrypt]`.
 
+Password recovery uses Resend. Add these settings to the root `.env` (never put
+the API key in source control):
+
+```bash
+RESEND_API_KEY=re_...
+RESEND_FROM_EMAIL="Brasaland <onboarding@resend.dev>"
+FRONTEND_BASE_URL=http://localhost:3001
+PASSWORD_RESET_EXPIRE_MINUTES=30
+```
+
+Use a sender permitted by your Resend account in `RESEND_FROM_EMAIL`. Reset
+links point to `/reset-password` on `FRONTEND_BASE_URL`; expiry must be between
+15 and 60 minutes. A reset token is stored only as a SHA-256 hash in the
+`password_reset_tokens` TinyDB table and is removed after use, expiry, or a
+subsequent password change. If Resend is unavailable, the public request still
+returns the same generic response and the failure is logged.
+
 API documentation is available at `http://localhost:8012/docs`. Build the
 backoffice before starting the server, then start the existing Next.js frontend:
 
@@ -71,6 +88,9 @@ excluded, including files where every row is invalid. No-score averages are
 | --- | --- |
 | `POST /users` | Public registration; email/password and optional name/phone/address. Role defaults to `user`; privileged registration is rejected. |
 | `POST /auth/login` | Public; JSON email/password or OAuth2 form username/password (username is the email). Returns a bearer JWT. |
+| `POST /auth/forgot-password` | Public; accepts `{ "email": "..." }`, queues a Resend email when the address exists, and always returns the same `200` message. |
+| `POST /auth/reset-password` | Public; accepts `{ "token": "...", "new_password": "..." }`; expired, invalid, or used tokens return `400`. |
+| `POST /auth/change-password` | Authenticated; accepts `{ "current_password": "...", "new_password": "..." }`; a wrong current password returns `400`. |
 | `GET /auth/me` | Authenticated identity with linked profile. |
 | `GET /users` | Admin only; password hashes are never returned. |
 | `GET /users/{id}` | Owner or admin. |
@@ -80,13 +100,14 @@ excluded, including files where every row is invalid. No-score averages are
 | `PUT /profiles/me` | Updates only the caller's name/phone/address; omitted fields remain unchanged. |
 
 The application-level dependency protects **every API route** by default, with
-only registration and login exempted. This includes all six supplier routes,
-both incident routes, `/health`, and `/`. Interactive docs, OpenAPI, and static
+only registration, login, forgot-password, and reset-password exempted. This
+includes all six supplier routes, both incident routes, `/health`, and `/`.
+Interactive docs, OpenAPI, and static
 backoffice assets remain public; static assets do not grant access to API data.
 AUTH-02 integrates bearer-token login, registration, profile editing, logout,
 and protected views into the existing Next.js app and proxied backoffice.
 
-Users and profiles live exclusively in named TinyDB tables in `data/auth.json`
+Users, profiles, and hashed password-reset tokens live in named TinyDB tables in `data/auth.json`
 (override with `AUTH_DB_PATH`). User IDs are stable UUID strings; JWTs carry both
 `sub` and `user_id`, plus `iat` and `exp`. Other modules must reference this ID
 as `user_id`, not create SQL user/profile tables, including after Supabase is
@@ -94,7 +115,7 @@ introduced. Passwords use passlib bcrypt, with an 8-character minimum and a
 72-byte UTF-8 maximum to avoid bcrypt truncation. Tokens are stateless; no
 authentication cookies or server-side login sessions are used. Account deletion
 or deactivation invalidates access immediately because each request reads the user.
-Password changes do not revoke already issued tokens; they expire normally.
+Password changes do not revoke already issued access tokens; they expire normally.
 
 There is no public admin bootstrap endpoint. To promote the first account, an
 operator with local database access can run the following from the repository
@@ -119,12 +140,12 @@ uv run --project services/api python -c 'from dotenv import load_dotenv; load_do
 	`ACCESS_TOKEN_EXPIRE_MINUTES=1`, restart, login, then call a protected endpoint
 	after expiry. Restore the desired window afterward.
 
-Focused disposable-database HTTP verification covered 56 checks: registration,
-JSON/form login, hash storage, JWT claims/expiry, all protected route families,
-wrong-signature/malformed/expired/missing-expiry tokens, ownership denials,
-profile updates, admin permissions, activation, password changes, user deletion,
-linked-profile cleanup, and cross-user incident-cache isolation. Browser-driven
-manual verification remains a separate step.
+Focused disposable-database HTTP verification covers registration, JSON/form
+login, JWT claims/expiry, protected route families, ownership denials, profile
+updates, admin permissions, activation, password changes, user deletion, linked
+profile cleanup, and cross-user incident-cache isolation. Password-reset tests
+mock Resend and verify the generic response, email link, hashed token storage,
+expiry, single-use behavior, and password updates.
 
 ## Data Handling and Deployment
 
