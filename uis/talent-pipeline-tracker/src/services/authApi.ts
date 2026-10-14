@@ -8,6 +8,18 @@ export const updateProfile = (profile: Profile) => apiRequest<Profile>("/api/bac
   method: "PUT", body: JSON.stringify(profile),
 });
 
+export const requestPasswordReset = (email: string) => apiRequest<{ message: string }>("/api/backend/auth/forgot-password", {
+  method: "POST", body: JSON.stringify({ email }),
+}, false);
+
+export const resetPassword = (token: string, new_password: string) => apiRequest<{ message: string }>("/api/backend/auth/reset-password", {
+  method: "POST", body: JSON.stringify({ token, new_password }),
+}, false);
+
+export const changePassword = (current_password: string, new_password: string) => apiRequest<{ message: string }>("/api/backend/auth/change-password", {
+  method: "POST", body: JSON.stringify({ current_password, new_password }),
+});
+
 export async function signIn(email: string, password: string): Promise<void> {
   const result = await apiRequest<{ access_token: string }>("/api/backend/auth/login", {
     method: "POST", body: JSON.stringify({ email, password }),

@@ -60,11 +60,20 @@ Then open `project-shell.html` from the repo root.
 
 ## AUTH-02
 
-Public auth views: `/login` and `/register`. Registration calls `POST /users`
+Public auth views: `/login`, `/register`, `/forgot-password`, and
+`/reset-password`. Registration calls `POST /users`
 with optional name/phone/address, then logs in with the same credentials.
 Both flows store the JWT in `localStorage` under `brasaland.access_token`.
 Forms remain disabled until hydration and use a POST fallback so credentials
 cannot accidentally become URL query parameters.
+
+Password recovery requests a Resend email through `POST /auth/forgot-password`;
+the API always returns the same confirmation for registered and unregistered
+addresses. Reset links open `/reset-password?token=...` and redirect to login
+after success. Authenticated users can change their password at
+`/account/change-password`. Configure `RESEND_API_KEY`, `RESEND_FROM_EMAIL`,
+`FRONTEND_BASE_URL`, and `PASSWORD_RESET_EXPIRE_MINUTES` in the API's root `.env`
+as documented in [the API README](../../services/api/README.md).
 
 Protected views:
 
@@ -74,6 +83,8 @@ Protected views:
 - `/candidates/[id]/edit`: candidate editing.
 - `/account/profile`: email and linked profile from `GET /auth/me`; name,
   phone, and address editing through `PUT /profiles/me`.
+- `/account/change-password`: authenticated password update with current-password
+    verification and matching new-password confirmation.
 - `/backoffice/`: incident upload, analysis, and CSV export.
 - `/backoffice/suppliers/`: supplier directory and management.
 
