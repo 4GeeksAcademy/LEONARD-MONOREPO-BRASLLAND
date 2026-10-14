@@ -57,6 +57,11 @@ Next.js environment. See [frontend authentication](../../uis/talent-pipeline-tra
 
 | Endpoint | Contract |
 | --- | --- |
+| `POST /api/incidents` | Creates a validated incident with title, description, category, status, origin, and branch. |
+| `GET /api/incidents` | Lists incidents; optional `status`, `origin`, `branch`, and `category` filters. |
+| `GET /api/incidents/{id}` | Returns one incident or `404`. |
+| `PATCH /api/incidents/{id}/status` | Applies a lifecycle-valid status transition. |
+| `GET /api/incidents/summary` | Returns totals by status, category, origin, and branch. |
 | `POST /api/incidents/analyze` | Multipart field `file`, a UTF-8 `.csv`; returns aggregate JSON plus validation-rule labels. |
 | `GET /api/incidents/results/export` | Downloads the authenticated user's last successful analysis as `results.csv`. |
 | `GET /health` | Service availability (protected). |
@@ -101,7 +106,7 @@ excluded, including files where every row is invalid. No-score averages are
 
 The application-level dependency protects **every API route** by default, with
 only registration, login, forgot-password, and reset-password exempted. This
-includes all six supplier routes, both incident routes, `/health`, and `/`.
+includes supplier, incident management, incident analysis, `/health`, and `/`.
 Interactive docs, OpenAPI, and static
 backoffice assets remain public; static assets do not grant access to API data.
 AUTH-02 integrates bearer-token login, registration, profile editing, logout,
@@ -148,6 +153,12 @@ mock Resend and verify the generic response, email link, hashed token storage,
 expiry, single-use behavior, and password updates.
 
 ## Data Handling and Deployment
+
+Historical incidents can be loaded with `uv run --project services/api python
+scripts/seed_incidents.py [path/to/incidents.csv]`. The default source is
+`data/raw/incidents-brasaland.csv` when present, otherwise the bundled demo CSV.
+The seeder and API use the same TinyDB file; override it with
+`SUPPLIERS_DB_PATH`. Repeated runs skip previously imported CSV IDs.
 
 Only aggregate summaries are retained, keyed by the authenticated user's ID.
 Results expire after one hour; the cache holds at most 128 users,

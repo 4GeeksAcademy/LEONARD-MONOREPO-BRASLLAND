@@ -1,10 +1,16 @@
 # Brasaland Operations Backoffice
 
-Incident analysis is the initial application-menu view. The browser supports
-file selection and drag/drop, displays totals, categories, statuses,
-satisfaction distribution, and each invalid-rule count, and downloads the
-aggregate CSV. Empty, loading, success, no-score, all-invalid, and error states
-are supported. A failed upload preserves the last successful summary.
+The application menu includes the centralized incident manager, incident
+analysis, and supplier directory. The manager registers incidents, displays
+aggregates from `/api/incidents/summary`, filters the live list, and updates
+lifecycle status with rollback and user-facing errors. Its page is available at
+`/backoffice/incidents/`.
+
+Incident analysis supports file selection and drag/drop, displays totals,
+categories, statuses, satisfaction distribution, and each invalid-rule count,
+and downloads the aggregate CSV. Empty, loading, success, no-score, all-invalid,
+and error states are supported. A failed upload preserves the last successful
+summary.
 
 ## Build and Run
 

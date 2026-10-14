@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -21,6 +22,7 @@ from services.api.auth import (
 )
 from services.api.database import open_database
 from services.api.routers.suppliers import router as suppliers_router
+from services.api.routers.incidents import router as incidents_router
 from services.api.seed import seed_database
 
 
@@ -77,6 +79,24 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(profiles_router)
 app.include_router(suppliers_router)
+app.include_router(incidents_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, error: RequestValidationError):
+    fields = [
+        {
+            "field": ".".join(str(part) for part in issue["loc"][1:]) or "request",
+            "message": issue["msg"],
+        }
+        for issue in error.errors()
+    ]
+    return JSONResponse(status_code=422, content={"detail": fields})
+
+
+@app.exception_handler(Exception)
+async def unexpected_error_handler(request: Request, error: Exception):
+    return JSONResponse(status_code=500, content={"detail": "An unexpected error occurred."})
 
 
 def expire_cache() -> None:
