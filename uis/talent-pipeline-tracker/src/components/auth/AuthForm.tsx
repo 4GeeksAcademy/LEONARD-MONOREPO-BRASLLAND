@@ -46,6 +46,7 @@ export function AuthForm({ registration = false }: { registration?: boolean }) {
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Unable to connect. Please try again.");
       if (failure instanceof ApiError) setFields(failure.fields);
+    } finally {
       setBusy(false);
     }
   }

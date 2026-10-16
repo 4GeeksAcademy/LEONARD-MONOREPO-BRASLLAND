@@ -2,10 +2,16 @@
 Safe snippet for basic pandas cleaning. Copy and adapt for your dataset.
 Run: python pandas_clean.py  (ensure pandas is installed)
 """
+import sys
+
 import pandas as pd
 
 # Load (adjust path and kwargs as needed)
-df = pd.read_csv("data.csv")  # or read_json, read_excel
+try:
+	df = pd.read_csv("data.csv")  # or read_json, read_excel
+except (OSError, UnicodeError, pd.errors.EmptyDataError, pd.errors.ParserError) as error:
+	print(f"Unable to read data.csv: {error}", file=sys.stderr)
+	raise SystemExit(1) from error
 print("df_shape", df.shape)
 print("df_dtypes", df.dtypes)
 

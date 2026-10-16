@@ -17,27 +17,25 @@ type HomePageProps = {
 
 export default function HomePage({ searchParams }: HomePageProps) {
   const params = use(searchParams);
-  const result = useApiData(JSON.stringify(params), () => getCandidates({
+  const { data: response, error, isLoading, retry } = useApiData(JSON.stringify(params), () => getCandidates({
       status: params.status,
       stage: params.stage,
       search: params.search,
       limit: 100,
   }));
-  const response = result?.data;
 
-  if (result?.error) {
+  if (error) {
     return (
       <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
         <article className="rounded-2xl border border-red-200 bg-red-50 p-5">
           <h1 className="text-xl font-black text-red-900">Could not load candidate list</h1>
-          <p className="mt-2 text-sm text-red-800">
-            {result.error}
-          </p>
+          <p className="mt-2 text-sm text-red-800">{error}</p>
+          <button type="button" onClick={retry} className="mt-3 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-white">Try again</button>
         </article>
       </main>
     );
   }
-  if (!response) return <main className="auth-status" role="status">Loading candidates...</main>;
+  if (isLoading || !response) return <main className="auth-status" role="status">Loading candidates...</main>;
 
   return (
     <main className="mx-auto max-w-6xl space-y-5 px-4 py-8 sm:px-6 lg:px-8">

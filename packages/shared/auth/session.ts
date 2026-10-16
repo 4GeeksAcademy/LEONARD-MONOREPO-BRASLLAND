@@ -8,6 +8,17 @@ export class ApiError extends Error {
   }
 }
 
+function publicErrorMessage(status: number): string {
+  if (status === 400) return "We couldn't process that request. Please review your information and try again.";
+  if (status === 401) return "Your email or password is incorrect. Please try again.";
+  if (status === 403) return "You don't have permission to complete this action.";
+  if (status === 404) return "We couldn't find that information. Refresh and try again.";
+  if (status === 409) return "An account with this email already exists.";
+  if (status === 422) return "Please review the highlighted fields and try again.";
+  if (status === 429) return "Too many attempts. Please wait a moment and try again.";
+  return "The service is temporarily unavailable. Please try again.";
+}
+
 export function getToken(): string | null {
   return window.localStorage.getItem(TOKEN_KEY);
 }
@@ -37,20 +48,31 @@ export async function sessionFetch(url: string, init: RequestInit = {}, protecte
 }
 
 export async function apiRequest<T>(url: string, init: RequestInit = {}, protectedCall = true): Promise<T> {
-  const response = await sessionFetch(url, init, protectedCall);
+  let response: Response;
+  try {
+    response = await sessionFetch(url, init, protectedCall);
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
+    throw new ApiError("Unable to connect to the service. Please check your connection and try again.", 0);
+  }
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
+    const payload = await response.json().catch(() => null) as { detail?: unknown } | null;
     const fields: FieldErrors = {};
-    if (Array.isArray(payload.detail)) {
-      for (const error of payload.detail) {
-        const field = error.loc?.at(-1);
-        if (field) fields[field] = error.msg;
+    if (Array.isArray(payload?.detail)) {
+      for (const issue of payload.detail) {
+        if (typeof issue !== "object" || issue === null) continue;
+        const location = (issue as { loc?: unknown }).loc;
+        const field = Array.isArray(location) ? location.at(-1) : undefined;
+        if (typeof field === "string") fields[field] = "Please check this field and try again.";
       }
     }
-    if (response.status === 409) fields.email = payload.detail;
-    const message = typeof payload.detail === "string"
-      ? payload.detail : "Please check the highlighted fields and try again.";
-    throw new ApiError(message, response.status, fields);
+    if (response.status === 409) fields.email = "An account with this email already exists.";
+    throw new ApiError(publicErrorMessage(response.status), response.status, fields);
   }
-  return response.status === 204 ? undefined as T : response.json();
+  if (response.status === 204) return undefined as T;
+  try {
+    return await response.json();
+  } catch {
+    throw new ApiError("The service returned an unreadable response. Please try again.", response.status);
+  }
 }

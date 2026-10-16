@@ -18,6 +18,7 @@ export function CandidateDetailClient({ initialCandidate, initialNotes }: Candid
   const [noteInput, setNoteInput] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
+  const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -66,6 +67,7 @@ export function CandidateDetailClient({ initialCandidate, initialNotes }: Candid
 
   async function onDeleteNote(noteId: string) {
     try {
+      setDeletingNoteId(noteId);
       setErrorMessage(null);
       setMessage(null);
       await deleteCandidateNote(candidate.id, noteId);
@@ -73,6 +75,8 @@ export function CandidateDetailClient({ initialCandidate, initialNotes }: Candid
       setMessage("Note deleted successfully.");
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : "Failed to delete note.");
+    } finally {
+      setDeletingNoteId(null);
     }
   }
 
@@ -170,10 +174,11 @@ export function CandidateDetailClient({ initialCandidate, initialNotes }: Candid
                 <button
                   type="button"
                   onClick={() => onDeleteNote(note.id)}
+                  disabled={deletingNoteId !== null}
                   className="font-semibold text-red-700"
                   title="Delete note"
                 >
-                  Delete
+                  {deletingNoteId === note.id ? "Deleting..." : "Delete"}
                 </button>
               </div>
             </li>

@@ -42,11 +42,15 @@ async function api(path, options = {}) {
   try {
     response = await sessionFetch(path, options);
   } catch (error) {
-    if (error.name === 'AbortError') throw error;
+    if (error instanceof Error && error.name === 'AbortError') throw error;
     throw new RequestFailure('The incident service is unavailable. Please try again.');
   }
   let body = {};
-  try { body = await response.json(); } catch { /* The request may have no JSON response. */ }
+  try {
+    body = await response.json();
+  } catch {
+    if (response.ok) throw new RequestFailure('The incident service returned an unreadable response. Please try again.');
+  }
   if (!response.ok) {
     const fields = {};
     if (response.status === 422 && Array.isArray(body.detail)) {
@@ -150,7 +154,8 @@ async function submitIncident(event) {
     await Promise.all([loadIncidents(), loadSummary()]);
   } catch (error) {
     const hasFields = showFieldErrors(error.fields || {});
-    toggleError('form-error', hasFields ? 'Please correct the highlighted fields.' : error.message);
+    toggleError('form-error', hasFields ? 'Please correct the highlighted fields.'
+      : error instanceof RequestFailure ? error.message : 'The incident could not be registered. Please review the form and try again.');
   } finally {
     setBusy(false);
   }
@@ -215,7 +220,7 @@ async function updateStatus(record, select) {
     });
     await Promise.all([loadIncidents(), loadSummary()]);
   } catch (error) {
-    toggleError('list-error', error.message);
+    toggleError('list-error', error instanceof RequestFailure ? error.message : 'The incident status could not be updated. Refresh the list and try again.');
     renderList();
   }
 }
@@ -263,7 +268,7 @@ async function loadIncidents() {
   } catch (error) {
     records = [];
     element('list-message').textContent = 'The incident list could not be loaded.';
-    toggleError('list-error', error.message);
+    toggleError('list-error', error instanceof RequestFailure ? error.message : 'Refresh the list to try again.');
     element('retry-list').hidden = false;
   }
 }
