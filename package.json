@@ -1,0 +1,7 @@
+{
+  "name": "brasaland-quality-checks",
+  "private": true,
+  "scripts": {
+    "test": "npm --prefix packages/shared test --"
+  }
+}
