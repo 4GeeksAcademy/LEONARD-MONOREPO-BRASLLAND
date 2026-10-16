@@ -25,5 +25,10 @@ build/
 !.env.example
 data/auth.json
 services/api/.venv/
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+packages/shared/node_modules/
 uis/talent-pipeline-tracker/test-results/
 uis/talent-pipeline-tracker/playwright-report/

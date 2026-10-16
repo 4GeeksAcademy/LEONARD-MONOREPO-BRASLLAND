@@ -1,0 +1,22 @@
+[project]
+name = "brasaland-quality-checks"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = ["brasaland-api"]
+
+[tool.uv.sources]
+brasaland-api = { path = "services/api", editable = true }
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "pytest-cov>=6,<8", "httpx==0.28.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["services/api/tests/unit"]
+pythonpath = [".", "packages"]
+
+[tool.coverage.run]
+source = ["services.api.auth"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 70

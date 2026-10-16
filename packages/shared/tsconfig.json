@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "CommonJS",
+    "lib": ["ES2022", "DOM"],
+    "strict": true,
+    "esModuleInterop": true,
+    "types": ["jest"]
+  },
+  "include": ["auth/**/*.ts", "__tests__/**/*.ts"]
+}
