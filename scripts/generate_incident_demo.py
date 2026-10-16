@@ -10,16 +10,21 @@ from incident_analysis import FIELDS
 from incident_analysis.test_analysis import benchmark_rows
 
 
-def main() -> None:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Generate SYNTHETIC Brasaland demo data, not the course attachment.")
     parser.add_argument("--output", type=Path, default=Path(__file__).with_name("incidents-brasaland-demo.csv"))
     arguments = parser.parse_args()
-    with arguments.output.open("x", encoding="utf-8", newline="") as destination:
-        writer = csv.DictWriter(destination, fieldnames=FIELDS)
-        writer.writeheader()
-        writer.writerows(benchmark_rows())
+    try:
+        with arguments.output.open("x", encoding="utf-8", newline="") as destination:
+            writer = csv.DictWriter(destination, fieldnames=FIELDS)
+            writer.writeheader()
+            writer.writerows(benchmark_rows())
+    except (OSError, csv.Error) as error:
+        print(f"Unable to create the demo CSV: {error}", file=sys.stderr)
+        return 1
     print(f"Synthetic demo created: {arguments.output}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -24,15 +24,23 @@ function showError(identifier, message = '') {
 }
 
 async function api(url, options = {}) {
-  const response = await sessionFetch(url, options);
-  const body = await response.json();
-  if (!response.ok) {
-    const detail = Array.isArray(body.detail)
-      ? body.detail.map((error) => `${error.loc.slice(1).join('.') || 'Supplier'}: ${error.msg}`).join('; ')
-      : body.detail;
-    throw new Error(detail || `Request failed (${response.status}).`);
+  let response;
+  try {
+    response = await sessionFetch(url, options);
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') throw error;
+    throw new Error('The supplier service is unavailable. Please try again.');
   }
-  return body;
+  if (!response.ok) {
+    if (response.status === 404) throw new Error('That supplier is no longer available. Refresh the directory and try again.');
+    if (response.status === 422) throw new Error('Please review the supplier information and try again.');
+    throw new Error('The request could not be completed. Please try again.');
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw new Error('The supplier service returned an unreadable response. Please try again.');
+  }
 }
 
 function node(tag, text, className) {
@@ -106,13 +114,15 @@ function render() {
 
 async function update(record, field, payload, control) {
   control.disabled = true;
+  element('directory-message').textContent = `Saving changes to ${record.name}...`;
   showError('directory-error');
   try {
     const updated = await api(`/suppliers/${record.id}/${field}`, { method: 'PATCH', body: JSON.stringify(payload) });
     records = records.map((existing) => existing.id === updated.id ? updated : existing);
     render();
-  } catch (error) {
-    showError('directory-error', error.message);
+  } catch {
+    showError('directory-error', 'The supplier could not be updated. Please try again.');
+    element('directory-message').textContent = 'Supplier directory is ready.';
   } finally {
     control.disabled = false;
   }
@@ -132,13 +142,15 @@ async function load() {
     records = await api(`/suppliers?${parameters}`, { signal: controller.signal });
     render();
   } catch (error) {
-    if (error.name !== 'AbortError') {
+    if (!(error instanceof Error && error.name === 'AbortError')) {
       records = [];
       element('supplier-rows').replaceChildren();
       element('no-suppliers').hidden = true;
       element('directory-message').textContent = 'Directory unavailable';
-      showError('directory-error', error.message);
+      showError('directory-error', 'The supplier directory could not be loaded. Select Refresh to try again.');
     }
+  } finally {
+    if (currentLoad === controller) currentLoad = undefined;
   }
 }
 
@@ -169,7 +181,9 @@ form.elements.country.addEventListener('change', () => { form.elements.currency.
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
   const submit = form.querySelector('[type="submit"]');
+  const submitLabel = submit.querySelector('span');
   submit.disabled = true;
+  if (submitLabel) submitLabel.textContent = 'Saving...';
   showError('form-error');
   const values = new FormData(form);
   const payload = Object.fromEntries(values);
@@ -183,10 +197,11 @@ form.addEventListener('submit', async (event) => {
     form.reset();
     validateCategories();
     await load();
-  } catch (error) {
-    showError('form-error', error.message);
+  } catch {
+    showError('form-error', 'The supplier could not be registered. Review the form and try again.');
   } finally {
     submit.disabled = false;
+      if (submitLabel) submitLabel.textContent = 'Register supplier';
   }
 });
 

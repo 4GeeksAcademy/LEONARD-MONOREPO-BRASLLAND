@@ -86,6 +86,7 @@ Protected views:
 - `/account/change-password`: authenticated password update with current-password
     verification and matching new-password confirmation.
 - `/backoffice/`: incident upload, analysis, and CSV export.
+- `/backoffice/incidents/`: incident registration, lifecycle management, and summary metrics.
 - `/backoffice/suppliers/`: supplier directory and management.
 
 The client layout validates stored tokens through `GET /auth/me` before mounting

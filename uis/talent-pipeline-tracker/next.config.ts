@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       { source: "/api/incidents/:path*", destination: `${backend}/api/incidents/:path*` },
       { source: "/suppliers/:path*", destination: `${backend}/suppliers/:path*` },
       { source: "/backoffice/", destination: `${backend}/backoffice/index.html` },
+      { source: "/backoffice/incidents/", destination: `${backend}/backoffice/incidents/index.html` },
       { source: "/backoffice/suppliers/", destination: `${backend}/backoffice/suppliers/index.html` },
       { source: "/backoffice/:path*", destination: `${backend}/backoffice/:path*` },
     ];

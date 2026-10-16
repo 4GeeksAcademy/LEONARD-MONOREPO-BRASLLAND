@@ -15,28 +15,36 @@ export function ForgotPasswordForm() {
   const hydrated = useHydrated();
   const [busy, setBusy] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy || submitted) return;
     setBusy(true);
+    setError("");
     const email = String(new FormData(event.currentTarget).get("email") ?? "");
-    await requestPasswordReset(email).catch(() => undefined);
-    setSubmitted(true);
-    setBusy(false);
+    try {
+      await requestPasswordReset(email);
+      setSubmitted(true);
+    } catch {
+      setError("We couldn't send the request. Please check your connection and try again.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return <main className="auth-page"><section className="auth-content">
     <p className="auth-brand">Brasaland / Account recovery</p>
     <h1>Forgot your password?</h1>
     {submitted && <p className="auth-success" role="status">If that address is registered, you&apos;ll receive a reset link shortly.</p>}
+    {error && <p className="auth-error" role="alert">{error}</p>}
     <form method="post" onSubmit={submit} aria-busy={busy}>
       <fieldset disabled={busy || submitted || !hydrated}>
         <div className="auth-field">
           <label htmlFor="email">Email</label>
           <input id="email" name="email" type="email" autoComplete="email" required />
         </div>
-        <button className="auth-button" type="submit">{submitted ? "Request sent" : busy ? "Sending..." : "Send reset link"}</button>
+        <button className="auth-button" type="submit">{submitted ? "Request sent" : busy ? "Sending..." : error ? "Try again" : "Send reset link"}</button>
       </fieldset>
     </form>
     <Link className="auth-link" href="/login">Back to log in</Link>
@@ -80,8 +88,9 @@ export function ResetPasswordForm() {
       await resetPassword(token, newPassword);
       router.replace("/login?password-reset=success");
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : "Unable to reset your password.");
+      setError(failure instanceof ApiError ? failure.message : "Unable to reset your password. Please try again.");
       if (failure instanceof ApiError) setFields(failure.fields);
+    } finally {
       setBusy(false);
     }
   }

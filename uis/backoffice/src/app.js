@@ -194,12 +194,20 @@ function renderSummary(summary) {
   hasResults = true;
 }
 
+class RequestFailure extends Error {}
+
 async function errorMessage(response) {
+  if (response.status === 400 || response.status === 415) return 'Please choose a valid UTF-8 CSV file and try again.';
+  if (response.status === 413) return 'This file is too large. Choose a smaller CSV and try again.';
+  if (response.status === 404) return 'There are no analysis results to download yet. Analyze a file first.';
+  return 'The request could not be completed. Please try again.';
+}
+
+async function responseJson(response) {
   try {
-    const body = await response.json();
-    return typeof body.detail === 'string' ? body.detail : `Request failed (${response.status}).`;
+    return await response.json();
   } catch {
-    return `Request failed (${response.status}).`;
+    throw new RequestFailure('The analysis service returned an unreadable response. Please try again.');
   }
 }
 
@@ -212,11 +220,11 @@ form.addEventListener('submit', async (event) => {
   payload.append('file', selectedFile);
   try {
     const response = await sessionFetch('/api/incidents/analyze', { method: 'POST', body: payload });
-    if (!response.ok) throw new Error(await errorMessage(response));
-    renderSummary(await response.json());
+    if (!response.ok) throw new RequestFailure(await errorMessage(response));
+    renderSummary(await responseJson(response));
     element('progress').textContent = 'Analysis complete.';
   } catch (error) {
-    showError(error.message === 'Failed to fetch' ? 'Cannot reach the analysis service. Please try again.' : error.message);
+    showError(error instanceof RequestFailure ? error.message : 'The analysis service could not complete this request. Please try again.');
   } finally {
     setBusy(false);
   }
@@ -228,7 +236,7 @@ downloadButton.addEventListener('click', async () => {
   downloadButton.disabled = true;
   try {
     const response = await sessionFetch('/api/incidents/results/export');
-    if (!response.ok) throw new Error(await errorMessage(response));
+    if (!response.ok) throw new RequestFailure(await errorMessage(response));
     const url = URL.createObjectURL(await response.blob());
     const anchor = document.createElement('a');
     anchor.href = url;
@@ -238,7 +246,7 @@ downloadButton.addEventListener('click', async () => {
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (error) {
-    showError(error.message === 'Failed to fetch' ? 'Cannot reach the export service. Please try again.' : error.message);
+    showError(error instanceof RequestFailure ? error.message : 'The results could not be downloaded. Please try again.');
   } finally {
     downloadButton.disabled = false;
   }

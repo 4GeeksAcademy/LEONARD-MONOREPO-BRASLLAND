@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#243b32" />
+    <title>Incident Manager | Brasaland Digital</title>
+    <link rel="stylesheet" href="../styles.css" />
+    <link rel="stylesheet" href="../incident-manager.css" />
+    <script type="module" src="../incidents.js"></script>
+  </head>
+  <body hidden>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <aside class="sidebar">
+      <a class="brand" href="/backoffice/" aria-label="Brasaland Digital home"><span class="brand-mark"><i data-lucide="flame" aria-hidden="true"></i></span><span><strong>brasaland<span class="brand-dot">.</span></strong><small>DIGITAL / BACKOFFICE</small></span></a>
+      <p class="nav-heading">WORKSPACE</p>
+      <nav aria-label="Application menu">
+        <a href="/backoffice/incidents/" class="nav-link active" aria-current="page"><i data-lucide="clipboard-list" aria-hidden="true"></i>Incident manager<span class="nav-indicator"></span></a>
+        <a href="/backoffice/" class="nav-link"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i>Incident analysis</a>
+        <a href="/backoffice/suppliers/" class="nav-link"><i data-lucide="truck" aria-hidden="true"></i>Supplier directory</a>
+        <a href="/" class="nav-link">Talent pipeline</a>
+        <a href="/account/profile" class="nav-link">My profile</a>
+        <button id="logout" class="nav-link" type="button">Log out</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="restaurant-image" role="img" aria-label="Grilled food on a restaurant table"></div><p class="network-label">ONE CHAIN. TWO MARKETS.</p><p class="network-detail">Colombia <span>/</span> Florida</p><div class="sidebar-foot"><i data-lucide="map-pin" aria-hidden="true"></i><span>14 locations</span></div></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><p><span>Operations</span><i data-lucide="chevron-right" aria-hidden="true"></i>Incident manager</p><span class="team-label"><span class="presence-dot"></span>Brasaland Digital</span></header>
+      <main id="main-content">
+        <div class="page-heading"><div><p class="eyebrow">OPERATIONS / INCIDENTS</p><h1>Incident manager</h1></div><button id="refresh-all" class="button secondary icon-button" type="button" title="Refresh incidents and summary" aria-label="Refresh incidents and summary"><i data-lucide="refresh-cw" aria-hidden="true"></i></button></div>
+
+        <section class="incident-form-section" aria-labelledby="form-title">
+          <div class="section-title"><h2 id="form-title">Report an incident</h2><span class="section-meta">REQUIRED FIELDS</span></div>
+          <form id="incident-form" novalidate>
+            <div class="incident-form-grid">
+              <label class="incident-field full-width" for="title">Title<input id="title" name="title" required maxlength="160" autocomplete="off" aria-describedby="title-error" /><span id="title-error" class="field-error" hidden></span></label>
+              <label class="incident-field full-width" for="description">Description<textarea id="description" name="description" required minlength="5" rows="3" aria-describedby="description-error"></textarea><span id="description-error" class="field-error" hidden></span></label>
+              <label class="incident-field" for="category">Category<select id="category" name="category" required aria-describedby="category-error"><option value="">Choose a category</option><option value="CUSTOMER_COMPLAINT">Customer complaint</option><option value="EQUIPMENT">Equipment</option><option value="SUPPLY">Supply</option><option value="FOOD_QUALITY">Food quality</option><option value="STAFF">Staff</option></select><span id="category-error" class="field-error" hidden></span></label>
+              <label class="incident-field" for="status">Status<select id="status" name="status" required aria-describedby="status-error"><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="discarded">Discarded</option></select><span id="status-error" class="field-error" hidden></span></label>
+              <label class="incident-field" for="origin">Origin<select id="origin" name="origin" required aria-describedby="origin-error"><option value="customer">Customer</option><option value="branch">Branch</option><option value="internal">Internal</option></select><span id="origin-error" class="field-error" hidden></span></label>
+              <label id="branch-field" class="incident-field branch-field" for="branch">Branch<select id="branch" name="branch" required aria-describedby="branch-help branch-error"><option value="">Choose a branch</option><option value="central">Central (not branch-specific)</option></select><small id="branch-help">Select the location managing or reporting this incident.</small><span id="branch-error" class="field-error" hidden></span></label>
+            </div>
+            <p id="form-error" class="error-message" role="alert" hidden></p>
+            <p id="form-success" class="success-message" role="status" hidden></p>
+            <div class="form-actions"><span id="submit-progress" class="progress-message" role="status" hidden>Saving incident...</span><button id="submit-incident" class="button primary" type="submit"><i data-lucide="check" aria-hidden="true"></i><span>Register incident</span></button></div>
+          </form>
+        </section>
+
+        <section class="summary-section" aria-labelledby="summary-title">
+          <div class="section-title"><h2 id="summary-title">Operations summary</h2><button id="retry-summary" class="button secondary retry-button" type="button" hidden>Retry summary</button></div>
+          <p id="summary-message" class="section-message" role="status" aria-live="polite">Loading metrics...</p>
+          <div id="summary-groups" class="summary-groups" hidden></div>
+        </section>
+
+        <section class="incident-list-section" aria-labelledby="list-title">
+          <div class="section-title"><h2 id="list-title">Incidents</h2><span id="list-count" class="section-meta"></span></div>
+          <div class="incident-filters">
+            <label for="status-filter">Status<select id="status-filter"><option value="">All statuses</option><option value="open">Open</option><option value="in_progress">In progress</option><option value="resolved">Resolved</option><option value="discarded">Discarded</option></select></label>
+            <label for="origin-filter">Origin<select id="origin-filter"><option value="">All origins</option><option value="customer">Customer</option><option value="branch">Branch</option><option value="internal">Internal</option></select></label>
+            <label for="branch-filter">Branch<select id="branch-filter"><option value="">All branches</option><option value="central">Central</option></select></label>
+          </div>
+          <p id="list-message" class="section-message" role="status" aria-live="polite">Loading incidents...</p>
+          <p id="list-error" class="error-message" role="alert" hidden></p>
+          <button id="retry-list" class="button secondary retry-button" type="button" hidden>Retry loading incidents</button>
+          <p id="empty-incidents" class="empty-state" hidden>No incidents match these filters. Report a new incident using the form above.</p>
+          <div id="incident-table-wrap" class="incident-table-wrap" hidden>
+            <table class="incident-table"><caption class="visually-hidden">Registered incidents</caption><thead><tr><th scope="col">Incident</th><th scope="col">Category</th><th scope="col">Origin</th><th scope="col">Branch</th><th scope="col">Created</th><th scope="col">Status</th></tr></thead><tbody id="incident-rows"></tbody></table>
+          </div>
+        </section>
+        <footer class="main-footer"><span>BRASALAND DIGITAL</span><span>Operations / Incident manager</span></footer>
+      </main>
+    </div>
+  </body>
+</html>

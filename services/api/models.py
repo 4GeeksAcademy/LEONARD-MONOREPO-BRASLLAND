@@ -3,6 +3,11 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
+from shared.incidents import (
+    IncidentBranch, IncidentCategory, IncidentOrigin, IncidentStatus,
+    validate_incident_values,
+)
+
 
 VALID_CATEGORIES = (
     "carne", "verduras_y_hortalizas", "salsas_y_condimentos", "bebidas",
@@ -50,3 +55,32 @@ class RateUpdate(BaseModel):
 class StatusUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     status: Status
+
+
+class IncidentCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(min_length=5)
+    category: IncidentCategory
+    status: IncidentStatus
+    origin: IncidentOrigin
+    branch: IncidentBranch
+
+    @model_validator(mode="after")
+    def validate_shared_fields(self):
+        errors = validate_incident_values(self.model_dump(mode="json"))
+        if errors:
+            raise ValueError("; ".join(f"{field}: {message}" for field, message in errors.items()))
+        return self
+
+
+class Incident(IncidentCreate):
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class IncidentStatusUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    status: IncidentStatus

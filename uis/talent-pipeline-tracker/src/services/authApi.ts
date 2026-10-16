@@ -24,7 +24,7 @@ export async function signIn(email: string, password: string): Promise<void> {
   const result = await apiRequest<{ access_token: string }>("/api/backend/auth/login", {
     method: "POST", body: JSON.stringify({ email, password }),
   }, false);
-  if (!result.access_token) throw new Error("The API did not return an access token.");
+  if (!result.access_token) throw new Error("Unable to sign in right now. Please try again.");
   window.localStorage.setItem(TOKEN_KEY, result.access_token);
 }
 
