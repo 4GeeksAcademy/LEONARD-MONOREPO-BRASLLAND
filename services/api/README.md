@@ -53,6 +53,17 @@ API calls onto the same origin as its stored JWT; do not open the internal UI
 directly on the API port. If the API port changes, set `AUTH_API_URL` in the
 Next.js environment. See [frontend authentication](../../uis/talent-pipeline-tracker/README.md).
 
+## Inventory Database
+
+Set `SUPABASE_DATABASE_URL` in the ignored repository-root `.env` file using
+the PostgreSQL connection string from the Supabase project settings. The
+service uses this SQLModel engine only for ingredient and order data; TinyDB
+continues to handle authentication and users. The inventory endpoints return
+`503` until the Supabase connection string is configured. Schema creation via
+`SQLModel.metadata.create_all` is for this learning environment only.
+Product reads require a Brasaland `location_id` (`COL-01` through `COL-10` or
+`FLA-01` through `FLA-04`); `current_stock` is calculated only for that location.
+
 ## Endpoints
 
 | Endpoint | Contract |
@@ -62,6 +73,12 @@ Next.js environment. See [frontend authentication](../../uis/talent-pipeline-tra
 | `GET /api/incidents/{id}` | Returns one incident or `404`. |
 | `PATCH /api/incidents/{id}/status` | Applies a lifecycle-valid status transition. |
 | `GET /api/incidents/summary` | Returns totals by status, category, origin, and branch. |
+| `GET /inventory/products?location_id=COL-01` | Lists ingredients with stock at the selected location. |
+| `POST /inventory/products` | Creates an ingredient with zero stock. |
+| `GET /inventory/products/{id}?location_id=COL-01` | Returns one ingredient with stock at the selected location. |
+| `POST /inventory/orders/inbound` | Records a location-scoped stock addition attributed to the authenticated user. |
+| `POST /inventory/orders/outbound` | Records a location-scoped stock removal if sufficient stock exists. |
+| `GET /inventory/orders` | Lists inbound and outbound orders with ingredient data and user UUID. |
 | `POST /api/incidents/analyze` | Multipart field `file`, a UTF-8 `.csv`; returns aggregate JSON plus validation-rule labels. |
 | `GET /api/incidents/results/export` | Downloads the authenticated user's last successful analysis as `results.csv`. |
 | `GET /health` | Service availability (protected). |

@@ -23,6 +23,10 @@ from services.api.auth import (
 from services.api.database import open_database
 from services.api.routers.suppliers import router as suppliers_router
 from services.api.routers.incidents import router as incidents_router
+from services.api.routers.inventory import router as inventory_router
+from services.api.app.database import engine
+from services.api.app import models as inventory_models
+from sqlmodel import SQLModel
 from services.api.seed import seed_database
 
 
@@ -62,6 +66,8 @@ class UploadLimitMiddleware:
 @asynccontextmanager
 async def lifespan(app):
     configure_auth(app)
+    if engine is not None:
+        SQLModel.metadata.create_all(engine)
     with open_database() as database, open_auth_database() as auth_database:
         seed_database(database)
         app.state.suppliers_db = database
@@ -80,6 +86,7 @@ app.include_router(users_router)
 app.include_router(profiles_router)
 app.include_router(suppliers_router)
 app.include_router(incidents_router)
+app.include_router(inventory_router)
 
 
 @app.exception_handler(RequestValidationError)
