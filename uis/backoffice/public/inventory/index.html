@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ingredient Inventory | Brasaland Digital</title>
+    <link rel="stylesheet" href="/backoffice/inventory.css" />
+    <link rel="stylesheet" href="/backoffice/styles.css" />
+    <link rel="stylesheet" href="/backoffice/directory.css" />
+    <link rel="stylesheet" href="/backoffice/inventory-layout.css" />
+    <script type="module" src="/backoffice/inventory.js"></script>
+  </head>
+  <body hidden>
+    <a class="skip-link" href="#main-content">Skip to content</a>
+    <aside class="sidebar">
+      <a class="brand" href="/backoffice/" aria-label="Brasaland Digital home"><span class="brand-mark"><i data-lucide="flame" aria-hidden="true"></i></span><span><strong>brasaland<span class="brand-dot">.</span></strong><small>DIGITAL / BACKOFFICE</small></span></a>
+      <p class="nav-heading">WORKSPACE</p>
+      <nav aria-label="Application menu">
+        <a href="/backoffice/incidents/" class="nav-link">Incident manager</a>
+        <a href="/backoffice/" class="nav-link">Incident analysis</a>
+        <a href="/backoffice/suppliers/" class="nav-link">Supplier directory</a>
+        <a href="/backoffice/inventory/products" class="nav-link active" aria-current="true"><i data-lucide="package" aria-hidden="true"></i>Inventory</a>
+        <a href="/" class="nav-link">Talent pipeline</a>
+        <a href="/account/profile" class="nav-link">My profile</a>
+        <button id="logout" class="nav-link" type="button">Log out</button>
+      </nav>
+      <div class="sidebar-bottom"><div class="restaurant-image" role="img" aria-label="Grilled food on a restaurant table"></div><p class="network-label">ONE CHAIN. TWO MARKETS.</p><p class="network-detail">Colombia <span>/</span> Florida</p><div class="sidebar-foot"><i data-lucide="map-pin" aria-hidden="true"></i><span>14 locations</span></div></div>
+    </aside>
+    <div class="workspace">
+      <header class="topbar"><p>Operations / Ingredient inventory</p><span class="team-label">Brasaland Digital</span></header>
+      <main id="main-content">
+        <div class="page-heading"><div><p class="eyebrow">OPERATIONS / INVENTORY</p><h1 id="view-title">Ingredient inventory</h1></div><button id="refresh" type="button" class="button secondary icon-button" title="Refresh inventory" aria-label="Refresh inventory"><i data-lucide="refresh-cw" aria-hidden="true"></i></button></div>
+        <nav id="inventory-tabs" class="inventory-tabs" aria-label="Inventory views"></nav>
+        <div class="directory-filters" id="location-field"><label>Restaurant location<select id="location"></select></label></div>
+        <p id="page-error" class="error-message" role="alert" hidden></p>
+        <p id="confirmation" class="inventory-confirmation" role="status" hidden></p>
+        <p id="page-status" role="status" aria-live="polite">Loading ingredient inventory...</p>
+        <div id="inventory-table" class="directory-scroll" hidden><table class="supplier-table inventory-table"><caption id="table-caption" class="visually-hidden">Ingredient inventory</caption><thead id="table-head"></thead><tbody id="table-rows"></tbody></table></div>
+        <form id="order-form" class="inventory-form" hidden>
+          <div class="form-grid">
+            <label class="full-width">Ingredient<select id="ingredient" required disabled><option value="">Select an ingredient</option></select></label>
+            <p id="stock-status" class="stock-status full-width" role="status" aria-live="polite" hidden>Select an ingredient to see available stock.</p>
+            <label class="full-width">Quantity<input id="quantity" name="quantity" type="number" min="0.001" max="99999999999.999" step="0.001" required disabled aria-describedby="stock-status quantity-warning quantity-error" /></label>
+          </div>
+          <p id="quantity-warning" class="inventory-warning" role="alert" hidden></p>
+          <p id="quantity-error" class="error-message" role="alert" hidden></p>
+          <button id="submit-order" type="submit" class="button primary" disabled><i data-lucide="check" aria-hidden="true"></i><span id="submit-label">Register delivery</span></button>
+        </form>
+        <p id="empty-state" class="empty-state" hidden></p>
+        <footer class="main-footer"><span>BRASALAND DIGITAL</span><span>Operations / Inventory</span></footer>
+      </main>
+    </div>
+  </body>
+</html>

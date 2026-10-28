@@ -55,12 +55,13 @@ Next.js environment. See [frontend authentication](../../uis/talent-pipeline-tra
 
 ## Inventory Database
 
-Set `SUPABASE_DATABASE_URL` in the ignored repository-root `.env` file using
-the PostgreSQL connection string from the Supabase project settings. The
-service uses this SQLModel engine only for ingredient and order data; TinyDB
-continues to handle authentication and users. The inventory endpoints return
-`503` until the Supabase connection string is configured. Schema creation via
-`SQLModel.metadata.create_all` is for this learning environment only.
+Set `SUPABASE_DATABASE_URL` or the `SUPABASE_DB_HOST`, `SUPABASE_DB_PORT`,
+`SUPABASE_DB_NAME`, `SUPABASE_DB_USER`, and `SUPABASE_DB_PASSWORD` values in the
+ignored repository-root `.env` file. Use the Supabase transaction pooler on port
+6543; do not commit the password. The service uses SQLModel only for ingredient
+and order data; TinyDB continues to handle authentication and users. Inventory
+endpoints return `503` until all connection settings are configured. Schema
+creation via `SQLModel.metadata.create_all` is for this learning environment only.
 Product reads require a Brasaland `location_id` (`COL-01` through `COL-10` or
 `FLA-01` through `FLA-04`); `current_stock` is calculated only for that location.
 

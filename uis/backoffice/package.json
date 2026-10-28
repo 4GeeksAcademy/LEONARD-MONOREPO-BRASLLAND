@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/app.js src/suppliers.js src/incidents.js --bundle --minify --format=esm --outdir=public --loader:.woff2=file --loader:.woff=file --asset-names=fonts/[name]-[hash]",
+    "build": "esbuild src/app.js src/suppliers.js src/incidents.js src/inventory.js --bundle --minify --format=esm --outdir=public --loader:.woff2=file --loader:.woff=file --asset-names=fonts/[name]-[hash]",
     "test": "playwright test"
   },
   "dependencies": {
