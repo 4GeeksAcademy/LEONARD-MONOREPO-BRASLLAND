@@ -38,6 +38,23 @@ at runtime. The photograph is decorative restaurant-food imagery, not a claim
 to depict an actual Brasaland location; source:
 https://images.unsplash.com/photo-1555939594-58d7cb561ad1
 
+## Ingredient Inventory (Milestone 5)
+
+The existing backoffice provides four authenticated views:
+
+- `/backoffice/inventory/products`: ingredient name, SKU, category, unit and current stock at the selected restaurant, with links to receive a delivery or log consumption.
+- `/backoffice/inventory/orders/inbound`: register a delivery by ingredient name, restaurant location and quantity.
+- `/backoffice/inventory/orders/outbound`: log consumption or an exit, with freshly fetched location-specific stock and an excessive-quantity warning.
+- `/backoffice/inventory/orders`: read-only entries and exits across all locations, including ingredient name, quantity, creation date and creator UUID.
+
+All inventory calls live in `src/inventory-api.js` and use the existing bearer-token session helper. API errors are visible, including insufficient-stock `400` messages next to the quantity field. Quantities allow up to three decimal places. Stock indicators use the ingredient's unit at the selected restaurant: zero or below is empty, up to 10 is low, above 10 is healthy. This is a provisional UI threshold, not a reorder policy.
+
+No `company-BRIEFING.md` was present during implementation. Labels follow the existing Brasaland API schemas and company context: ingredients, SKU, category, unit, deliveries, consumption and the 14 restaurant location codes. Confirm these labels against the missing briefing before submission.
+
+Configure `NEXT_PUBLIC_INVENTORY_API_URL` in the existing Next.js app's ignored `uis/talent-pipeline-tracker/.env.local` to point to the inventory service (locally, `http://127.0.0.1:8012`). It defaults to `AUTH_API_URL` when omitted. Restart Next.js after changing it. The static backoffice does not load `.env.local` itself: Next.js proxies inventory requests to that URL, preserving the shared browser origin and authentication. Never put tokens in environment files. The root `.gitignore` already excludes `.env.*`, including `.env.local`.
+
+Build with the command above, start the API with its database configuration, then run `npm --prefix uis/talent-pipeline-tracker run dev -- --hostname 0.0.0.0 --port 3001`. Open `http://localhost:3001/backoffice/inventory/products` after logging in. Inventory data requires the backend's configured SQL database; a `503` is displayed rather than replaced with demo data.
+
 ## Browser Verification
 
 Install Chromium with `npm --prefix uis/backoffice exec -- playwright install chromium`.

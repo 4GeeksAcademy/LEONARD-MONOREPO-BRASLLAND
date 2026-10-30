@@ -17,6 +17,8 @@ uis/backoffice/public/suppliers.js
 uis/backoffice/public/suppliers.css
 uis/backoffice/public/incidents.js
 uis/backoffice/public/incidents.css
+uis/backoffice/public/inventory.js
+uis/backoffice/public/inventory.css
 data/suppliers.json
 services/api/*.egg-info/
 build/

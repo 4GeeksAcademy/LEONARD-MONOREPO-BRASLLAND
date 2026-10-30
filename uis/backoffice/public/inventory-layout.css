@@ -1,0 +1,29 @@
+.inventory-tabs { display: flex; flex-wrap: wrap; gap: 6px 20px; border-bottom: 1px solid var(--line); margin-bottom: 20px; }
+.inventory-tab { display: inline-flex; align-items: center; gap: 7px; padding: 12px 0; color: var(--muted); text-decoration: none; border-bottom: 3px solid transparent; font-size: 12px; }
+.inventory-tab[aria-current="page"] { border-color: var(--green); color: var(--ink); font-weight: 600; }
+.inventory-tab svg { width: 16px; height: 16px; }
+.inventory-form { max-width: 580px; padding-block: 20px; }
+.inventory-form .button { margin-top: 18px; max-width: 100%; white-space: normal; text-align: left; }
+.inventory-form p { margin: 0; }
+.inventory-form .error-message, .inventory-form .inventory-warning { margin-block: 14px; }
+.stock-status { padding: 14px; background: #eaf3f8; border-left: 3px solid #32729b; font-variant-numeric: tabular-nums; }
+.inventory-confirmation { padding: 14px; color: #236447; background: #e5f3e9; border-left: 3px solid #26765a; }
+.inventory-warning { padding: 14px; color: #805600; background: #fff5d9; border-left: 3px solid #b77c0b; }
+.inventory-badge { display: inline-block; padding: 5px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.inventory-badge.healthy { background: #e5f3e9; color: #236447; }
+.inventory-badge.low { background: #fff1cc; color: #805600; }
+.inventory-badge.empty { background: #fce8e3; color: #963e33; }
+.inventory-badge.exit { background: #e7effa; color: #245a8b; }
+.row-actions { display: flex; gap: 8px; }
+.row-actions a { text-decoration: none; }
+.inventory-table td { overflow-wrap: anywhere; }
+.inventory-table .user-uuid { min-width: 160px; max-width: 230px; font-size: 11px; }
+.sidebar #logout { width: 100%; border: 0; background: transparent; font-family: inherit; text-align: left; }
+#page-status { color: var(--muted); font-size: 12px; }
+#location-field label { max-width: 340px; }
+@media (max-width: 700px) {
+  .inventory-tabs { gap: 2px 14px; }
+  .inventory-tab { flex: 1 1 40%; }
+  .inventory-table { min-width: 760px; }
+  .topbar { flex-wrap: wrap; height: auto; min-height: 69px; padding-block: 12px; }
+}
