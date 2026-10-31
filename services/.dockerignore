@@ -1,0 +1,12 @@
+__pycache__
+**/__pycache__
+*.pyc
+**/*.pyc
+.env*
+**/.env*
+tests/
+**/tests/
+*.log
+**/*.log
+.venv
+**/.venv
