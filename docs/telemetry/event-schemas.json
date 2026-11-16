@@ -1,0 +1,1500 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Brasaland Telemetry Event Schemas",
+  "version": "1.0",
+  "description": "Complete schema definitions for all 32 telemetry events (3 mandatory) in the inventory system",
+  "eventEnvelope": {
+    "type": "object",
+    "properties": {
+      "eventId": {
+        "type": "string",
+        "description": "UUID v4 unique event identifier"
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time",
+        "description": "ISO 8601 UTC timestamp"
+      },
+      "sessionId": {
+        "type": "string",
+        "description": "User session ID or 'system' for automated"
+      },
+      "userId": {
+        "type": "string",
+        "description": "User ID or 'system' for automated processes"
+      },
+      "event_type": {
+        "type": "string",
+        "description": "entity_action format (e.g. inbound_order_created)"
+      },
+      "schemaVersion": {
+        "type": "string",
+        "description": "Schema version for compatibility"
+      },
+      "requestId": {
+        "type": "string",
+        "description": "Correlation ID linking frontend\u2192backend\u2192logs"
+      },
+      "properties": {
+        "type": "object",
+        "description": "Event-specific payload (see allowlist)"
+      }
+    },
+    "required": [
+      "eventId",
+      "timestamp",
+      "sessionId",
+      "userId",
+      "event_type",
+      "schemaVersion",
+      "requestId",
+      "properties"
+    ]
+  },
+  "events": [
+    {
+      "event_type": "inbound_order_created",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "An inbound order is registered in the system (e.g., from supplier)",
+      "contains_pii": false,
+      "contains_sensitive_data": true,
+      "sensitive_data_strategy": "Order IDs retained for procurement; supplier IDs anonymised in analytics reports",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "none",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "required": true,
+          "description": "Unique inbound order identifier"
+        },
+        "supplierId": {
+          "type": "string",
+          "required": true,
+          "description": "Supplier ID (supplier-XXX)"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Receiving location (COL-01 to COL-10, FLA-01 to FLA-04)"
+        },
+        "productCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Number of distinct products"
+        },
+        "totalQuantity": {
+          "type": "integer",
+          "required": true,
+          "description": "Total units ordered"
+        },
+        "totalCost": {
+          "type": "number",
+          "required": true,
+          "description": "Total cost (supplier currency)"
+        },
+        "currency": {
+          "type": "string",
+          "required": true,
+          "description": "COP or USD"
+        }
+      },
+      "property_allowlist": [
+        "orderId",
+        "supplierId",
+        "locationId",
+        "productCount",
+        "totalQuantity",
+        "totalCost",
+        "currency"
+      ],
+      "decision_enabled": "Procurement can track order-to-receipt time; measure supplier performance; identify seasonal demand"
+    },
+    {
+      "event_type": "outbound_order_created",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "A location places an outbound order (request for stock from warehouse)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "none",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "required": true,
+          "description": "Unique outbound order ID"
+        },
+        "requestingLocationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location placing the order"
+        },
+        "productCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Number of distinct products requested"
+        },
+        "totalQuantity": {
+          "type": "integer",
+          "required": true,
+          "description": "Total units requested"
+        },
+        "priority": {
+          "type": "string",
+          "enum": [
+            "routine",
+            "urgent"
+          ],
+          "required": true,
+          "description": "Routine or emergency order"
+        }
+      },
+      "property_allowlist": [
+        "orderId",
+        "requestingLocationId",
+        "productCount",
+        "totalQuantity",
+        "priority"
+      ],
+      "decision_enabled": "Mariana can answer 'how many orders per day'; identify peak demand times; forecast capacity needs"
+    },
+    {
+      "event_type": "stock_threshold_breached",
+      "category": "inventory_operations",
+      "mandatory": true,
+      "description": "Stock for a product at a location falls below minimum threshold (ALERT EVENT)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "stream",
+      "batch_window": "N/A",
+      "throttle_rule": "one alert per product per location per 1 hour (prevent spam)",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "required": true,
+          "description": "Product SKU"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location where threshold breached"
+        },
+        "currentStock": {
+          "type": "integer",
+          "required": true,
+          "description": "Current quantity on hand"
+        },
+        "minimumThreshold": {
+          "type": "integer",
+          "required": true,
+          "description": "Configured minimum level"
+        },
+        "daysUntilStockout": {
+          "type": "number",
+          "required": true,
+          "description": "Estimated days until zero (based on consumption rate)"
+        }
+      },
+      "property_allowlist": [
+        "productId",
+        "locationId",
+        "currentStock",
+        "minimumThreshold",
+        "daysUntilStockout"
+      ],
+      "decision_enabled": "Procurement team is alerted to place emergency orders immediately; prevent service disruption"
+    },
+    {
+      "event_type": "direct_stock_edit_rejected",
+      "category": "inventory_operations_security",
+      "mandatory": true,
+      "description": "An operator attempts to modify stock directly; the system rejects the action (AUDIT LOG)",
+      "contains_pii": true,
+      "contains_sensitive_data": true,
+      "sensitive_data_strategy": "Stored in secure audit log with restricted access; anonymised user hash in analytics",
+      "stream_or_batch": "stream",
+      "batch_window": "N/A",
+      "throttle_rule": "none (audit events never throttled)",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "required": true,
+          "description": "User attempting direct edit (hashed in analytics)"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location of attempted edit"
+        },
+        "productId": {
+          "type": "string",
+          "required": true,
+          "description": "Product targeted"
+        },
+        "attemptedQuantityChange": {
+          "type": "integer",
+          "required": true,
+          "description": "Quantity change attempted (+ or -)"
+        },
+        "rejectionReason": {
+          "type": "string",
+          "enum": [
+            "no_order_reference",
+            "insufficient_permission",
+            "invalid_quantity"
+          ],
+          "required": true,
+          "description": "Why edit was rejected"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "required": true,
+          "description": "When attempt occurred"
+        }
+      },
+      "property_allowlist": [
+        "userId",
+        "locationId",
+        "productId",
+        "attemptedQuantityChange",
+        "rejectionReason",
+        "timestamp"
+      ],
+      "decision_enabled": "Security team audits unauthorized attempts; compliance verifies system enforces constraints; operations confirms no bypass possible"
+    },
+    {
+      "event_type": "stock_validation_failed",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Stock operation fails validation (negative quantity, invalid SKU, format error, etc.)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "aggregate by error_type, group by product",
+      "properties": {
+        "errorType": {
+          "type": "string",
+          "enum": [
+            "negative_quantity",
+            "invalid_sku",
+            "insufficient_stock",
+            "expired_product",
+            "format_mismatch"
+          ],
+          "required": true,
+          "description": "Type of validation failure"
+        },
+        "productId": {
+          "type": "string",
+          "required": true,
+          "description": "Product involved (or 'unknown' if unreadable)"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location where validation failed"
+        },
+        "attemptedValue": {
+          "type": "string",
+          "required": true,
+          "description": "What was submitted (truncated to 100 chars)"
+        },
+        "count": {
+          "type": "integer",
+          "required": false,
+          "description": "Aggregate count in batch event"
+        }
+      },
+      "property_allowlist": [
+        "errorType",
+        "productId",
+        "locationId",
+        "attemptedValue",
+        "count"
+      ],
+      "decision_enabled": "Operations identifies which products cause most errors; fix root causes (bad barcodes, training issues, etc.)"
+    },
+    {
+      "event_type": "user_login_successful",
+      "category": "authentication",
+      "mandatory": true,
+      "description": "User successfully authenticates and starts a session",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "required": true,
+          "description": "User ID"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location user is logging in from (if applicable)"
+        },
+        "userRole": {
+          "type": "string",
+          "enum": [
+            "operator",
+            "supervisor",
+            "manager",
+            "admin"
+          ],
+          "required": true,
+          "description": "Role/permission level"
+        },
+        "authMethod": {
+          "type": "string",
+          "enum": [
+            "password",
+            "sso",
+            "api_key"
+          ],
+          "required": true,
+          "description": "How user authenticated"
+        }
+      },
+      "property_allowlist": [
+        "userId",
+        "locationId",
+        "userRole",
+        "authMethod"
+      ],
+      "decision_enabled": "Operations verifies all locations are logging in; identify locations with zero activity that may have issues"
+    },
+    {
+      "event_type": "user_login_failed",
+      "category": "authentication_security",
+      "mandatory": false,
+      "description": "User provides invalid credentials or authentication fails (THRESHOLD ALERT)",
+      "contains_pii": true,
+      "contains_sensitive_data": true,
+      "sensitive_data_strategy": "Never log full username/email; only hash + count. Alert on threshold: >3 fails per user per 10 min",
+      "stream_or_batch": "stream",
+      "batch_window": "N/A",
+      "throttle_rule": "aggregate by user_hash; emit alert only if threshold exceeded",
+      "properties": {
+        "userIdentifierHash": {
+          "type": "string",
+          "required": true,
+          "description": "SHA-256 hash of username/email attempted"
+        },
+        "failureReason": {
+          "type": "string",
+          "enum": [
+            "invalid_password",
+            "user_not_found",
+            "account_locked",
+            "mfa_failed"
+          ],
+          "required": true,
+          "description": "Why login failed"
+        },
+        "attemptCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Failed attempts by this user in last 10 min"
+        }
+      },
+      "property_allowlist": [
+        "userIdentifierHash",
+        "failureReason",
+        "attemptCount"
+      ],
+      "decision_enabled": "Security team detects credential compromise attempts; alert on brute force patterns; Ashley can reset locked accounts"
+    },
+    {
+      "event_type": "api_request_completed",
+      "category": "performance",
+      "mandatory": false,
+      "description": "API request completes (latency tracking; sampled 1 in 10 to control volume)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly (percentile aggregation)",
+      "throttle_rule": "sample 1 in 10 requests (deterministic: hash(requestId) % 10 == 0)",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "required": true,
+          "description": "API endpoint (e.g. POST /orders)"
+        },
+        "method": {
+          "type": "string",
+          "enum": [
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "PATCH"
+          ],
+          "required": true,
+          "description": "HTTP method"
+        },
+        "statusCode": {
+          "type": "integer",
+          "required": true,
+          "description": "HTTP response code"
+        },
+        "durationMs": {
+          "type": "integer",
+          "required": true,
+          "description": "Request duration in milliseconds"
+        },
+        "locationId": {
+          "type": "string",
+          "required": false,
+          "description": "Location making request (if applicable)"
+        }
+      },
+      "property_allowlist": [
+        "endpoint",
+        "method",
+        "statusCode",
+        "durationMs",
+        "locationId"
+      ],
+      "decision_enabled": "Infrastructure team identifies performance degradation; Nicol\u00e1s pinpoints bottlenecks; aggregates compute p50/p95/p99"
+    },
+    {
+      "event_type": "service_error_occurred",
+      "category": "performance_reliability",
+      "mandatory": false,
+      "description": "Uncaught exception or service error (IMMEDIATE ALERT for critical errors)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "stream (immediate) + batch (daily digest)",
+      "batch_window": "N/A for stream; daily for digest",
+      "throttle_rule": "critical errors (5xx) alert immediately; dedup same error type per 5 min",
+      "properties": {
+        "errorType": {
+          "type": "string",
+          "required": true,
+          "description": "Exception class (e.g. ValueError, DatabaseError)"
+        },
+        "errorMessage": {
+          "type": "string",
+          "required": true,
+          "description": "Error message (truncated to 500 chars; no stack trace)"
+        },
+        "endpoint": {
+          "type": "string",
+          "required": true,
+          "description": "Which endpoint/function failed"
+        },
+        "severity": {
+          "type": "string",
+          "enum": [
+            "info",
+            "warning",
+            "error",
+            "critical"
+          ],
+          "required": true,
+          "description": "Severity level"
+        },
+        "count": {
+          "type": "integer",
+          "required": false,
+          "description": "Aggregate count in batch"
+        }
+      },
+      "property_allowlist": [
+        "errorType",
+        "errorMessage",
+        "endpoint",
+        "severity",
+        "count"
+      ],
+      "decision_enabled": "Development team prioritizes fixes; Nicol\u00e1s measures system stability; identify patterns in failures"
+    },
+    {
+      "event_type": "page_viewed",
+      "category": "user_navigation",
+      "mandatory": false,
+      "description": "User navigates to a backoffice page (throttled to 1 per 30s per page)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "1 event per page per 30 seconds (avoid refresh spam)",
+      "properties": {
+        "pageUrl": {
+          "type": "string",
+          "required": true,
+          "description": "URL of page (path only, no query params)"
+        },
+        "pageTitle": {
+          "type": "string",
+          "required": true,
+          "description": "Human-readable page name (e.g. 'Inventory Dashboard')"
+        },
+        "locationId": {
+          "type": "string",
+          "required": false,
+          "description": "Location context if applicable"
+        },
+        "timeOnPage": {
+          "type": "integer",
+          "required": true,
+          "description": "Seconds spent on page before navigation"
+        }
+      },
+      "property_allowlist": [
+        "pageUrl",
+        "pageTitle",
+        "locationId",
+        "timeOnPage"
+      ],
+      "decision_enabled": "Camila identifies which sections drive behavior; operations optimizes UI for high-traffic areas"
+    },
+    {
+      "event_type": "feature_clicked",
+      "category": "user_navigation",
+      "mandatory": false,
+      "description": "User clicks a UI element (button, link, feature) with debounce 500ms",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "debounce 500ms (emit only after 500ms inactivity on same button)",
+      "properties": {
+        "featureName": {
+          "type": "string",
+          "required": true,
+          "description": "Name of button/feature (e.g. 'create_order_button')"
+        },
+        "pageContext": {
+          "type": "string",
+          "required": true,
+          "description": "Page where feature exists"
+        },
+        "actionResult": {
+          "type": "string",
+          "enum": [
+            "success",
+            "error",
+            "abandoned"
+          ],
+          "required": true,
+          "description": "Did action complete?"
+        }
+      },
+      "property_allowlist": [
+        "featureName",
+        "pageContext",
+        "actionResult"
+      ],
+      "decision_enabled": "Operations identifies abandoned features; redesign confusing workflows; Camila invests in features driving adoption"
+    },
+    {
+      "event_type": "workflow_abandoned",
+      "category": "user_navigation",
+      "mandatory": false,
+      "description": "User starts a multi-step workflow but exits without completing",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "workflowType": {
+          "type": "string",
+          "enum": [
+            "create_order",
+            "receive_stock",
+            "adjust_threshold",
+            "run_report"
+          ],
+          "required": true,
+          "description": "Which workflow abandoned"
+        },
+        "stepReached": {
+          "type": "integer",
+          "required": true,
+          "description": "How many steps completed before exit"
+        },
+        "totalSteps": {
+          "type": "integer",
+          "required": true,
+          "description": "Total steps in workflow"
+        },
+        "abandonmentReason": {
+          "type": "string",
+          "enum": [
+            "user_navigated_away",
+            "error_occurred",
+            "unknown"
+          ],
+          "required": true,
+          "description": "Why abandoned"
+        }
+      },
+      "property_allowlist": [
+        "workflowType",
+        "stepReached",
+        "totalSteps",
+        "abandonmentReason"
+      ],
+      "decision_enabled": "Operations redesigns workflows causing high abandonment; identify missing features or confusing UX"
+    },
+    {
+      "event_type": "inbound_order_received",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Inbound order received and stock confirmed in system",
+      "contains_pii": false,
+      "contains_sensitive_data": true,
+      "sensitive_data_strategy": "Order IDs retained; supplier IDs anonymised in reports",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "required": true,
+          "description": "Inbound order ID"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Receiving location"
+        },
+        "productsReceived": {
+          "type": "integer",
+          "required": true,
+          "description": "Number of distinct products received"
+        },
+        "totalUnitsReceived": {
+          "type": "integer",
+          "required": true,
+          "description": "Total units"
+        },
+        "daysFromOrderToReceipt": {
+          "type": "number",
+          "required": true,
+          "description": "Lead time in days"
+        }
+      },
+      "property_allowlist": [
+        "orderId",
+        "locationId",
+        "productsReceived",
+        "totalUnitsReceived",
+        "daysFromOrderToReceipt"
+      ],
+      "decision_enabled": "Procurement measures supplier performance (lead time); identify slow suppliers"
+    },
+    {
+      "event_type": "outbound_order_allocated",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Stock reserved for an outbound order (inventory visibility update)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "stream",
+      "batch_window": "N/A",
+      "throttle_rule": "none",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "required": true,
+          "description": "Outbound order ID"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location receiving stock"
+        },
+        "allocatedQuantity": {
+          "type": "integer",
+          "required": true,
+          "description": "Total units allocated"
+        },
+        "availabilityPercentage": {
+          "type": "number",
+          "required": true,
+          "description": "% of requested qty available (0-100)"
+        }
+      },
+      "property_allowlist": [
+        "orderId",
+        "locationId",
+        "allocatedQuantity",
+        "availabilityPercentage"
+      ],
+      "decision_enabled": "Real-time inventory visibility; identify if products are over-allocated; prevent double-booking"
+    },
+    {
+      "event_type": "outbound_order_fulfilled",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Outbound order picked and shipped from warehouse",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "stream",
+      "batch_window": "N/A",
+      "throttle_rule": "none",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "required": true,
+          "description": "Outbound order ID"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Destination location"
+        },
+        "shipmentTime": {
+          "type": "string",
+          "format": "date-time",
+          "required": true,
+          "description": "When shipped"
+        },
+        "minutesFromOrderToShip": {
+          "type": "integer",
+          "required": true,
+          "description": "Order-to-fulfillment time"
+        }
+      },
+      "property_allowlist": [
+        "orderId",
+        "locationId",
+        "shipmentTime",
+        "minutesFromOrderToShip"
+      ],
+      "decision_enabled": "Real-time fulfillment tracking; forecast delivery times; identify delays"
+    },
+    {
+      "event_type": "outbound_order_cancelled",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Outbound order cancelled (stock released back to inventory)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "orderId": {
+          "type": "string",
+          "required": true,
+          "description": "Outbound order ID"
+        },
+        "cancellationReason": {
+          "type": "string",
+          "enum": [
+            "insufficient_stock",
+            "location_requested",
+            "system_error",
+            "manual_override"
+          ],
+          "required": true,
+          "description": "Why cancelled"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location that placed order"
+        },
+        "unitsReleased": {
+          "type": "integer",
+          "required": true,
+          "description": "Units returned to inventory"
+        }
+      },
+      "property_allowlist": [
+        "orderId",
+        "cancellationReason",
+        "locationId",
+        "unitsReleased"
+      ],
+      "decision_enabled": "Operations root-causes cancellations; identify systemic issues; prevent repeat problems"
+    },
+    {
+      "event_type": "session_created",
+      "category": "authentication",
+      "mandatory": false,
+      "description": "User session starts",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "none",
+      "properties": {
+        "sessionDurationSeconds": {
+          "type": "integer",
+          "required": false,
+          "description": "Session timeout in seconds"
+        },
+        "locationId": {
+          "type": "string",
+          "required": false,
+          "description": "Location session created from"
+        }
+      },
+      "property_allowlist": [
+        "sessionDurationSeconds",
+        "locationId"
+      ],
+      "decision_enabled": "Infrastructure plans capacity by hourly user load; operations knows peak hours"
+    },
+    {
+      "event_type": "session_expired",
+      "category": "authentication",
+      "mandatory": false,
+      "description": "User session times out or is invalidated",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "sessionDurationSeconds": {
+          "type": "integer",
+          "required": true,
+          "description": "How long session lasted"
+        },
+        "expiryReason": {
+          "type": "string",
+          "enum": [
+            "timeout",
+            "user_logout",
+            "concurrent_login",
+            "security_revoke"
+          ],
+          "required": true,
+          "description": "Why session ended"
+        },
+        "inactivityMinutes": {
+          "type": "integer",
+          "required": true,
+          "description": "Minutes of inactivity before expiry"
+        }
+      },
+      "property_allowlist": [
+        "sessionDurationSeconds",
+        "expiryReason",
+        "inactivityMinutes"
+      ],
+      "decision_enabled": "Operations reviews if timeout settings are too aggressive; adjust to balance security/usability"
+    },
+    {
+      "event_type": "permission_denied",
+      "category": "authentication_security",
+      "mandatory": false,
+      "description": "User attempts to access resource they don't have permission for",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "Anonymise user ID in analytics; retain in audit log only",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "aggregate by resource_type + user_role",
+      "properties": {
+        "resourceType": {
+          "type": "string",
+          "enum": [
+            "inventory",
+            "reports",
+            "users",
+            "settings",
+            "audit_logs"
+          ],
+          "required": true,
+          "description": "What resource was denied"
+        },
+        "userRole": {
+          "type": "string",
+          "enum": [
+            "operator",
+            "supervisor",
+            "manager",
+            "admin"
+          ],
+          "required": true,
+          "description": "User's role"
+        },
+        "action": {
+          "type": "string",
+          "enum": [
+            "read",
+            "write",
+            "delete",
+            "admin"
+          ],
+          "required": true,
+          "description": "What action was denied"
+        }
+      },
+      "property_allowlist": [
+        "resourceType",
+        "userRole",
+        "action"
+      ],
+      "decision_enabled": "Security audits permissions; operations fixes legitimate access issues; identify over-restrictions"
+    },
+    {
+      "event_type": "database_query_slow",
+      "category": "performance_reliability",
+      "mandatory": false,
+      "description": "Database query exceeds 1 second duration (IMMEDIATE ALERT)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "stream",
+      "batch_window": "N/A",
+      "throttle_rule": "threshold-based: >1000ms; dedup same query type per 5 min",
+      "properties": {
+        "durationMs": {
+          "type": "integer",
+          "required": true,
+          "description": "Query duration"
+        },
+        "queryType": {
+          "type": "string",
+          "enum": [
+            "select",
+            "insert",
+            "update",
+            "delete",
+            "join"
+          ],
+          "required": true,
+          "description": "Type of query"
+        },
+        "table": {
+          "type": "string",
+          "required": true,
+          "description": "Primary table affected"
+        },
+        "rowsAffected": {
+          "type": "integer",
+          "required": false,
+          "description": "Number of rows scanned/affected"
+        }
+      },
+      "property_allowlist": [
+        "durationMs",
+        "queryType",
+        "table",
+        "rowsAffected"
+      ],
+      "decision_enabled": "Database team adds indexes; Nicol\u00e1s refactors queries; identify bottlenecks in schema"
+    },
+    {
+      "event_type": "background_job_failed",
+      "category": "performance_reliability",
+      "mandatory": false,
+      "description": "Automated background job fails (e.g., nightly reconciliation) (IMMEDIATE ALERT)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "stream",
+      "batch_window": "N/A",
+      "throttle_rule": "none (operational alert)",
+      "properties": {
+        "jobName": {
+          "type": "string",
+          "required": true,
+          "description": "Name of background job"
+        },
+        "jobSchedule": {
+          "type": "string",
+          "required": true,
+          "description": "When it's scheduled (e.g. 'daily 2am')"
+        },
+        "errorMessage": {
+          "type": "string",
+          "required": true,
+          "description": "Error that occurred (truncated 500 chars)"
+        },
+        "retryAttempt": {
+          "type": "integer",
+          "required": true,
+          "description": "Which retry attempt this is"
+        }
+      },
+      "property_allowlist": [
+        "jobName",
+        "jobSchedule",
+        "errorMessage",
+        "retryAttempt"
+      ],
+      "decision_enabled": "Operations manually intervenes; Nicol\u00e1s fixes broken processes before next run"
+    },
+    {
+      "event_type": "product_stock_query",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Operator queries stock level for a product (decision-critical items identified)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "aggregate by product_id; count queries",
+      "properties": {
+        "productId": {
+          "type": "string",
+          "required": true,
+          "description": "Product queried"
+        },
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location making query"
+        },
+        "queryCount": {
+          "type": "integer",
+          "required": false,
+          "description": "Aggregate count in batch"
+        }
+      },
+      "property_allowlist": [
+        "productId",
+        "locationId",
+        "queryCount"
+      ],
+      "decision_enabled": "Operations identifies high-query products requiring priority monitoring; flag data quality issues"
+    },
+    {
+      "event_type": "api_error_response",
+      "category": "performance_reliability",
+      "mandatory": false,
+      "description": "API request returns error status (4xx/5xx)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "aggregate by endpoint + status_code",
+      "properties": {
+        "endpoint": {
+          "type": "string",
+          "required": true,
+          "description": "API endpoint that returned error"
+        },
+        "statusCode": {
+          "type": "integer",
+          "required": true,
+          "description": "HTTP status code"
+        },
+        "errorMessage": {
+          "type": "string",
+          "required": true,
+          "description": "API error message (truncated 200 chars)"
+        },
+        "count": {
+          "type": "integer",
+          "required": false,
+          "description": "Aggregate count in batch"
+        }
+      },
+      "property_allowlist": [
+        "endpoint",
+        "statusCode",
+        "errorMessage",
+        "count"
+      ],
+      "decision_enabled": "Operations identifies which endpoints fail most; development prioritizes fixes"
+    },
+    {
+      "event_type": "report_generated",
+      "category": "user_navigation",
+      "mandatory": false,
+      "description": "User generates a report (which reports are most used?)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "reportType": {
+          "type": "string",
+          "enum": [
+            "inventory_summary",
+            "stock_movements",
+            "order_analysis",
+            "supplier_performance",
+            "location_comparison"
+          ],
+          "required": true,
+          "description": "Type of report"
+        },
+        "generationTimeMs": {
+          "type": "integer",
+          "required": true,
+          "description": "Report generation duration"
+        },
+        "rowsIncluded": {
+          "type": "integer",
+          "required": true,
+          "description": "Number of data rows in report"
+        }
+      },
+      "property_allowlist": [
+        "reportType",
+        "generationTimeMs",
+        "rowsIncluded"
+      ],
+      "decision_enabled": "Camila prioritizes report improvements based on usage; identify unused reports to deprecate"
+    },
+    {
+      "event_type": "bulk_import_started",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Operator initiates bulk data import (CSV, spreadsheet, etc.)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "none",
+      "properties": {
+        "importType": {
+          "type": "string",
+          "enum": [
+            "inbound_orders",
+            "product_catalog",
+            "stock_adjustments",
+            "threshold_updates"
+          ],
+          "required": true,
+          "description": "What is being imported"
+        },
+        "fileFormat": {
+          "type": "string",
+          "enum": [
+            "csv",
+            "xlsx",
+            "json"
+          ],
+          "required": true,
+          "description": "File format"
+        },
+        "recordCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Number of records in import"
+        }
+      },
+      "property_allowlist": [
+        "importType",
+        "fileFormat",
+        "recordCount"
+      ],
+      "decision_enabled": "Operations tracks bulk operations; identify patterns in bulk imports that cause errors"
+    },
+    {
+      "event_type": "bulk_import_completed",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Bulk import finishes (success or partial success)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "none",
+      "properties": {
+        "importType": {
+          "type": "string",
+          "required": true,
+          "description": "Type of import"
+        },
+        "totalRecords": {
+          "type": "integer",
+          "required": true,
+          "description": "Records attempted"
+        },
+        "successCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Records successfully imported"
+        },
+        "failureCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Records failed"
+        },
+        "durationSeconds": {
+          "type": "integer",
+          "required": true,
+          "description": "Total import duration"
+        }
+      },
+      "property_allowlist": [
+        "importType",
+        "totalRecords",
+        "successCount",
+        "failureCount",
+        "durationSeconds"
+      ],
+      "decision_enabled": "Operations reviews import success rates; identify data quality issues; optimize bulk processes"
+    },
+    {
+      "event_type": "inventory_reconciliation_started",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Physical inventory reconciliation process begins (count vs. system)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location undergoing reconciliation"
+        },
+        "productsToCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Number of distinct products"
+        },
+        "scheduledDurationMinutes": {
+          "type": "integer",
+          "required": true,
+          "description": "Expected duration"
+        }
+      },
+      "property_allowlist": [
+        "locationId",
+        "productsToCount",
+        "scheduledDurationMinutes"
+      ],
+      "decision_enabled": "Operations schedules reconciliation; infrastructure plans for downtime; identify bottleneck locations"
+    },
+    {
+      "event_type": "inventory_reconciliation_completed",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Reconciliation finishes; discrepancies identified",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "daily",
+      "throttle_rule": "none",
+      "properties": {
+        "locationId": {
+          "type": "string",
+          "required": true,
+          "description": "Location reconciled"
+        },
+        "durationMinutes": {
+          "type": "integer",
+          "required": true,
+          "description": "Actual duration"
+        },
+        "discrepancyCount": {
+          "type": "integer",
+          "required": true,
+          "description": "Items with count vs. system mismatches"
+        },
+        "discrepancyValue": {
+          "type": "number",
+          "required": false,
+          "description": "Total value of discrepancies (currency units)"
+        },
+        "accuracyPercentage": {
+          "type": "number",
+          "required": true,
+          "description": "% of items with correct count (0-100)"
+        }
+      },
+      "property_allowlist": [
+        "locationId",
+        "durationMinutes",
+        "discrepancyCount",
+        "discrepancyValue",
+        "accuracyPercentage"
+      ],
+      "decision_enabled": "Operations identifies locations with accuracy problems; root-cause data quality issues; invest in process improvements"
+    },
+    {
+      "event_type": "supplier_performance_updated",
+      "category": "inventory_operations",
+      "mandatory": false,
+      "description": "Supplier performance metrics recalculated (order lead time, accuracy, etc.)",
+      "contains_pii": false,
+      "contains_sensitive_data": true,
+      "sensitive_data_strategy": "Supplier IDs retained for procurement; anonymised in benchmarking reports",
+      "stream_or_batch": "batch",
+      "batch_window": "weekly",
+      "throttle_rule": "none",
+      "properties": {
+        "supplierId": {
+          "type": "string",
+          "required": true,
+          "description": "Supplier ID"
+        },
+        "avgLeadDays": {
+          "type": "number",
+          "required": true,
+          "description": "Average lead time (days)"
+        },
+        "onTimePercentage": {
+          "type": "number",
+          "required": true,
+          "description": "% orders delivered on time"
+        },
+        "qualityScore": {
+          "type": "number",
+          "required": true,
+          "description": "Quality metric 0-100"
+        }
+      },
+      "property_allowlist": [
+        "supplierId",
+        "avgLeadDays",
+        "onTimePercentage",
+        "qualityScore"
+      ],
+      "decision_enabled": "Procurement evaluates suppliers; negotiate better terms with reliable ones; replace underperforming suppliers"
+    },
+    {
+      "event_type": "cache_invalidated",
+      "category": "performance_reliability",
+      "mandatory": false,
+      "description": "Cache entry invalidated (inventory snapshots, reports, etc.)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "aggregate by cache_key",
+      "properties": {
+        "cacheKey": {
+          "type": "string",
+          "required": true,
+          "description": "What was cached (e.g. inventory_snapshot_COL-01)"
+        },
+        "invalidationReason": {
+          "type": "string",
+          "enum": [
+            "data_changed",
+            "ttl_expired",
+            "manual_refresh",
+            "error"
+          ],
+          "required": true,
+          "description": "Why invalidated"
+        },
+        "count": {
+          "type": "integer",
+          "required": false,
+          "description": "Aggregate count in batch"
+        }
+      },
+      "property_allowlist": [
+        "cacheKey",
+        "invalidationReason",
+        "count"
+      ],
+      "decision_enabled": "Infrastructure optimizes cache TTLs; identify hot cache entries; balance freshness vs. performance"
+    },
+    {
+      "event_type": "external_api_call",
+      "category": "performance_reliability",
+      "mandatory": false,
+      "description": "Call to external service (payment gateway, email service, supplier API, etc.)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "sample 1 in 10 for high-volume services",
+      "properties": {
+        "serviceName": {
+          "type": "string",
+          "required": true,
+          "description": "External service name (e.g. 'email_service', 'payment_gateway')"
+        },
+        "durationMs": {
+          "type": "integer",
+          "required": true,
+          "description": "Call duration"
+        },
+        "statusCode": {
+          "type": "integer",
+          "required": true,
+          "description": "Response code"
+        },
+        "retryCount": {
+          "type": "integer",
+          "required": false,
+          "description": "How many retries before success"
+        }
+      },
+      "property_allowlist": [
+        "serviceName",
+        "durationMs",
+        "statusCode",
+        "retryCount"
+      ],
+      "decision_enabled": "Operations monitors external service reliability; identify timeout patterns; adjust retry logic"
+    },
+    {
+      "event_type": "feature_flag_evaluated",
+      "category": "performance_reliability",
+      "mandatory": false,
+      "description": "Feature flag checked (which flags are used? A/B test tracking)",
+      "contains_pii": false,
+      "contains_sensitive_data": false,
+      "sensitive_data_strategy": "none",
+      "stream_or_batch": "batch",
+      "batch_window": "hourly",
+      "throttle_rule": "sample 1 in 50 (reduce noise)",
+      "properties": {
+        "flagName": {
+          "type": "string",
+          "required": true,
+          "description": "Name of feature flag"
+        },
+        "flagValue": {
+          "type": "boolean",
+          "required": true,
+          "description": "Flag was enabled or disabled"
+        },
+        "userSegment": {
+          "type": "string",
+          "required": false,
+          "description": "A/B test segment (if applicable)"
+        }
+      },
+      "property_allowlist": [
+        "flagName",
+        "flagValue",
+        "userSegment"
+      ],
+      "decision_enabled": "Product team analyzes feature adoption; Camila measures impact of experiments; control feature rollout"
+    }
+  ]
+}

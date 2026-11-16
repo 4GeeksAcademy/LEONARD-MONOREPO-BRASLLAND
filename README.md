@@ -16,6 +16,9 @@ The incident analyzer is implemented in [scripts](./scripts/README.md), the
 See [verification and demo screenshots](./docs/incident-analysis/README.md)
 for test results and the original-sample verification still required.
 
+For the development containers and configuration requirements, see
+[Docker setup](./docs/containerization.md).
+
 ---
 
 ## Purpose

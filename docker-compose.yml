@@ -1,0 +1,56 @@
+services:
+  ui:
+    build:
+      context: ./uis
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      AUTH_API_URL: ${AUTH_API_URL:-http://backend:8012}
+      NEXT_PUBLIC_INVENTORY_API_URL: ${NEXT_PUBLIC_INVENTORY_API_URL:-http://backend:8012}
+    volumes:
+      - ./uis:/workspace/uis
+      - ./packages:/workspace/packages:ro
+      - ui-website-node-modules:/workspace/uis/website/node_modules
+      - ui-tracker-node-modules:/workspace/uis/talent-pipeline-tracker/node_modules
+      - ui-backoffice-node-modules:/workspace/uis/backoffice/node_modules
+      - ui-website-next-cache:/workspace/uis/website/.next
+      - ui-tracker-next-cache:/workspace/uis/talent-pipeline-tracker/.next
+    depends_on:
+      - backend
+    networks:
+      - company
+
+  backend:
+    build:
+      context: ./services
+      dockerfile: Dockerfile
+      additional_contexts:
+        packages: ./packages
+        shared: ./shared
+    env_file:
+      - .env
+    environment:
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3001}
+    ports:
+      - "8012:8012"
+    volumes:
+      - ./services:/workspace/services
+      - ./packages:/workspace/packages
+      - ./shared:/workspace/shared
+      - ./data:/workspace/data
+      - ./uis/backoffice/public:/workspace/uis/backoffice/public:ro
+    networks:
+      - company
+
+networks:
+  company:
+    name: company-monorepo
+
+volumes:
+  ui-website-node-modules:
+  ui-tracker-node-modules:
+  ui-backoffice-node-modules:
+  ui-website-next-cache:
+  ui-tracker-next-cache:
