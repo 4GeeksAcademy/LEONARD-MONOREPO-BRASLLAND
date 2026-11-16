@@ -9,6 +9,7 @@ services:
     environment:
       AUTH_API_URL: ${AUTH_API_URL:-http://backend:8012}
       NEXT_PUBLIC_INVENTORY_API_URL: ${NEXT_PUBLIC_INVENTORY_API_URL:-http://backend:8012}
+      NEXT_PUBLIC_TELEMETRY_ENDPOINT: ${NEXT_PUBLIC_TELEMETRY_ENDPOINT:-/telemetry/events}
     volumes:
       - ./uis:/workspace/uis
       - ./packages:/workspace/packages:ro
@@ -33,6 +34,7 @@ services:
       - .env
     environment:
       FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://localhost:3001}
+      TELEMETRY_ENDPOINT: ${TELEMETRY_ENDPOINT:-http://backend:8012/telemetry/events}
     ports:
       - "8012:8012"
     volumes:

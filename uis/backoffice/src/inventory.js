@@ -4,6 +4,7 @@ import '@fontsource/dm-sans/latin-600.css';
 import '@fontsource/space-grotesk/latin-600.css';
 import { requireSession } from './auth.js';
 import { listIngredients, getIngredient, listOrders, registerOrder } from './inventory-api.js';
+import { track } from './services/telemetry.js';
 import { createIcons, Flame, MapPin, Package, ArrowDownToLine, ArrowUpFromLine, History, RefreshCw, Check } from 'lucide';
 
 const icons = { Flame, MapPin, Package, ArrowDownToLine, ArrowUpFromLine, History, RefreshCw, Check };
@@ -79,6 +80,7 @@ if (await requireSession()) {
   let stockVersion = 0;
   let loadVersion = 0;
   let saving = false;
+  let ingredientSkus = new Map();
 
   function updateQuantity() {
     const exceeds = outbound && available !== null && Number(quantity.value) > available;
@@ -102,6 +104,10 @@ if (await requireSession()) {
     try {
       const ingredient = await getIngredient(ingredientSelect.value, locationSelect.value);
       if (version !== stockVersion) return;
+      track('product_stock_query', {
+        productId: ingredient.sku,
+        locationId: locationSelect.value,
+      });
       available = ingredient.current_stock;
       stockUnit = ingredient.unit;
       element('stock-status').textContent = `Available at ${locationSelect.value}: ${available} ${stockUnit}`;
@@ -192,6 +198,7 @@ if (await requireSession()) {
       const records = await (isHistory ? listOrders() : listIngredients(locationSelect.value));
       if (version !== loadVersion) return;
       if (isForm) {
+        ingredientSkus = new Map(records.map(ingredient => [String(ingredient.id), ingredient.sku]));
         const previous = ingredientSelect.value || parameters.get('ingredient_id');
         ingredientSelect.replaceChildren(new Option('Select an ingredient', ''));
         for (const ingredient of records) ingredientSelect.append(new Option(`${ingredient.name} / ${ingredient.unit}`, ingredient.id));
@@ -218,7 +225,18 @@ if (await requireSession()) {
   element('refresh').addEventListener('click', load);
   form.addEventListener('submit', async event => {
     event.preventDefault();
-    if (submit.disabled || !form.reportValidity()) return;
+    if (submit.disabled) return;
+    if (!form.reportValidity()) {
+      if (quantity.value && Number(quantity.value) <= 0) {
+        track('stock_validation_failed', {
+          errorType: 'negative_quantity',
+          productId: ingredientSkus.get(ingredientSelect.value) ?? 'unknown',
+          locationId: locationSelect.value,
+          attemptedValue: quantity.value.slice(0, 100),
+        });
+      }
+      return;
+    }
     saving = true;
     updateQuantity();
     ingredientSelect.disabled = true;
@@ -229,17 +247,49 @@ if (await requireSession()) {
     message('page-error');
     message('quantity-error');
     try {
-      await registerOrder(outbound ? 'outbound' : 'inbound', {
+      const order = await registerOrder(outbound ? 'outbound' : 'inbound', {
         ingredient_id: Number(ingredientSelect.value), location_id: locationSelect.value, quantity: quantity.value,
+      });
+      if (outbound && Number.isInteger(order.quantity)) {
+        track('outbound_order_created', {
+          orderId: String(order.id),
+          requestingLocationId: order.location_id,
+          productCount: 1,
+          totalQuantity: order.quantity,
+          priority: 'routine',
+        });
+      }
+      track('feature_clicked', {
+        featureName: outbound ? 'record_consumption' : 'register_delivery',
+        pageContext: location.pathname,
+        actionResult: 'success',
       });
       form.reset();
       message('confirmation', outbound ? 'Consumption / exit recorded successfully.' : 'Delivery registered successfully.');
       await refreshStock();
     } catch (error) {
       if (outbound && error.status === 400) {
+        track('stock_validation_failed', {
+          errorType: 'insufficient_stock',
+          productId: ingredientSkus.get(ingredientSelect.value) ?? 'unknown',
+          locationId: locationSelect.value,
+          attemptedValue: quantity.value.slice(0, 100),
+        });
+        track('feature_clicked', {
+          featureName: 'record_consumption',
+          pageContext: location.pathname,
+          actionResult: 'error',
+        });
         await refreshStock();
         message('quantity-error', error.message);
-      } else message('page-error', error.message);
+      } else {
+        track('feature_clicked', {
+          featureName: outbound ? 'record_consumption' : 'register_delivery',
+          pageContext: location.pathname,
+          actionResult: 'error',
+        });
+        message('page-error', error.message);
+      }
     } finally {
       saving = false;
       ingredientSelect.disabled = false;
