@@ -2,6 +2,7 @@
 set -eu
 
 export AUTH_API_URL="${AUTH_API_URL:-http://backend:8012}"
+export NEXT_PUBLIC_TELEMETRY_ENDPOINT="${NEXT_PUBLIC_TELEMETRY_ENDPOINT:-/telemetry/events}"
 
 npm --prefix /workspace/uis/backoffice run build -- --watch=forever &
 backoffice_pid=$!

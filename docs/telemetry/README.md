@@ -4,7 +4,15 @@
 
 This directory contains Brasaland's comprehensive telemetry strategy for the inventory management system. The plan identifies **32 distinct events** across **7 categories**, designed to answer both mandatory business questions and emerging operational needs.
 
-**Current Status:** ✅ Design Phase Complete (32 events designed, schemas validated)
+**Current Status:** ✅ Design Phase Complete; frontend capture and the validation-only receiver are implemented. Persistence remains for Phase 3.
+
+## Frontend Capture
+
+The backoffice reads `NEXT_PUBLIC_TELEMETRY_ENDPOINT` at build time through its esbuild configuration. Set it in the UI container environment before starting the backoffice; the default is the same-origin path `/telemetry/events`. The backend reads `TELEMETRY_ENDPOINT` for the upcoming persistence phase. The current `POST /telemetry/events` receiver validates the envelope, logs the batch size and event types, and does not persist data.
+
+The client batches events every 10 seconds or at 20 events, retries failed sends up to three times with exponential backoff, and uses `sendBeacon` when the page is hidden. It enforces each event's property allowlist from `event-schemas.json`.
+
+Current backoffice instrumentation covers session start/login success and expiry, page views, frontend errors, sampled API latency, product stock queries, stock validation failures, outbound order creation where the approved integer quantity schema can represent the order, and inventory action outcomes. Inbound orders lack supplier and cost data; the current model has no configured minimum-stock threshold or consumption-rate estimate; rejected direct stock edits have no supported edit endpoint or UI; and failed logins occur in the separate tracker login flow. Those events cannot be emitted accurately from this backoffice yet.
 
 ---
 
