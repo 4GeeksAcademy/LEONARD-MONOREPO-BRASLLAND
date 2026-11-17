@@ -10,7 +10,7 @@ from shared.incidents import (
 )
 from services.api.database import get_database
 from services.api.models import (
-    Incident, IncidentCreate, IncidentOrigin, IncidentCategory,
+    Incident, IncidentCreate, IncidentSummary, IncidentOrigin, IncidentCategory,
     IncidentStatus, IncidentStatusUpdate,
 )
 
@@ -69,7 +69,7 @@ def list_incidents(
     ]
 
 
-@router.get("/summary")
+@router.get("/summary", response_model=IncidentSummary)
 def incident_summary(database: Database):
     records = database.table("incidents").all()
     metrics = {

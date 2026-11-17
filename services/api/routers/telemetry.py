@@ -29,7 +29,11 @@ class TelemetryBatch(BaseModel):
     events: list[TelemetryEvent] = Field(max_length=100)
 
 
-@router.post("/events")
+class TelemetryReceipt(BaseModel):
+    received: int
+
+
+@router.post("/events", response_model=TelemetryReceipt)
 def receive_events(batch: TelemetryBatch):
     logger.info("Received %d telemetry events", len(batch.events))
     for event in batch.events:

@@ -26,8 +26,12 @@ class IngredientCreate(BaseModel):
     unit: str = Field(min_length=1, max_length=24)
 
 
-class IngredientRead(IngredientCreate):
+class IngredientRead(BaseModel):
     id: int
+    name: str
+    sku: str
+    category: IngredientCategory
+    unit: str
     current_stock: float
 
 
@@ -52,8 +56,13 @@ class IngredientEntryRead(BaseModel):
     user_uuid: str
 
 
-class IngredientExitRead(IngredientEntryRead):
-    pass
+class IngredientExitRead(BaseModel):
+    id: int
+    ingredient_id: int
+    location_id: LocationId
+    quantity: float
+    created_at: datetime
+    user_uuid: str
 
 
 class IngredientOrderRead(BaseModel):

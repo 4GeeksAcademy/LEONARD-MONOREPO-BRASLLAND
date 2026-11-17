@@ -49,6 +49,29 @@ class Profile(ProfileFields):
     user_id: str
 
 
+class ProfileRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    name: str
+    phone: str
+    address: str
+
+
+class MessageRead(BaseModel):
+    message: str
+
+
+class RegisteredUserRead(BaseModel):
+    id: str
+    created_at: datetime
+
+
+class UserListItem(BaseModel):
+    id: str
+    email: EmailStr
+    role: Role
+    is_active: bool
+
+
 class UserRead(BaseModel):
     id: str
     email: EmailStr
@@ -149,7 +172,7 @@ class ProfileUpdate(BaseModel):
 
 
 class CurrentUserRead(UserRead):
-    profile: Profile
+    profile: ProfileRead
 
 
 class Token(BaseModel):
@@ -293,7 +316,7 @@ def delete_user(database: TinyDB, user_id: str) -> None:
     database.table("profiles").remove(Query().user_id == user_id)
 
 
-@public_router.post("/users", response_model=UserRead, status_code=201, tags=["Users"])
+@public_router.post("/users", response_model=RegisteredUserRead, status_code=201, tags=["Users"])
 def register(payload: UserCreate, database: Database):
     return create_user(database, payload)
 
@@ -389,7 +412,7 @@ def deliver_password_reset_email(database: TinyDB, user_id: str, email: str, tok
         logger.exception("Could not send a password reset email for user %s.", user_id)
 
 
-@auth_router.post("/forgot-password", status_code=200)
+@auth_router.post("/forgot-password", response_model=MessageRead, status_code=200)
 def forgot_password(
     payload: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
@@ -412,7 +435,7 @@ def forgot_password(
     return {"message": "If that address is registered, you'll receive a reset link shortly."}
 
 
-@auth_router.post("/reset-password", status_code=200)
+@auth_router.post("/reset-password", response_model=MessageRead, status_code=200)
 def reset_password(payload: ResetPasswordRequest, database: Database):
     token_id = hashlib.sha256(payload.token.encode("utf-8")).hexdigest()
     tokens = database.table("password_reset_tokens")
@@ -438,7 +461,7 @@ def reset_password(payload: ResetPasswordRequest, database: Database):
     return {"message": "Password has been reset."}
 
 
-@auth_router.post("/change-password", status_code=200)
+@auth_router.post("/change-password", response_model=MessageRead, status_code=200)
 def change_password(payload: ChangePasswordRequest, current: CurrentUser, database: Database):
     if not bcrypt.verify(payload.current_password, current.hashed_password):
         raise HTTPException(400, "Current password is incorrect.")
@@ -449,7 +472,7 @@ def change_password(payload: ChangePasswordRequest, current: CurrentUser, databa
     return {"message": "Password has been changed."}
 
 
-@users_router.get("", response_model=list[UserRead])
+@users_router.get("", response_model=list[UserListItem])
 def list_users(current: CurrentUser, database: Database):
     if current.role != Role.admin:
         raise HTTPException(403, "Only admins may list users.")
@@ -470,18 +493,18 @@ def edit_user(user_id: str, payload: UserUpdate, current: CurrentUser, database:
     return update_user(database, user_id, payload)
 
 
-@users_router.delete("/{user_id}", status_code=204)
+@users_router.delete("/{user_id}", status_code=204, response_model=None)
 def remove_user(user_id: str, current: CurrentUser, database: Database):
     require_owner_or_admin(current, user_id)
     delete_user(database, user_id)
 
 
-@profiles_router.get("/me", response_model=Profile)
+@profiles_router.get("/me", response_model=ProfileRead)
 def read_profile(current: CurrentUser, database: Database):
     return find_profile(database, current.id)
 
 
-@profiles_router.put("/me", response_model=Profile)
+@profiles_router.put("/me", response_model=ProfileRead)
 def edit_profile(payload: ProfileUpdate, current: CurrentUser, database: Database):
     find_profile(database, current.id)
     database.table("profiles").update(payload.model_dump(exclude_unset=True), Query().user_id == current.id)
