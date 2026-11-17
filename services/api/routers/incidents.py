@@ -21,7 +21,7 @@ IncidentId = Annotated[int, Path(gt=0)]
 TRANSITIONS = {
     "open": {"in_progress", "discarded"},
     "in_progress": {"resolved", "discarded"},
-    "resolved": {"in_progress", "discarded"},
+    "resolved": set(),
     "discarded": set(),
 }
 
