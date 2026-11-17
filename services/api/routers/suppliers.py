@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path
 from tinydb import Query, TinyDB
 
 from services.api.database import get_database
-from services.api.models import Category, Country, RateUpdate, StatusUpdate, Supplier, SupplierCreate
+from services.api.models import Category, Country, DeleteConfirmation, RateUpdate, StatusUpdate, Supplier, SupplierCreate
 
 
 router = APIRouter(prefix="/suppliers", tags=["Suppliers"])
@@ -62,7 +62,7 @@ def update_status(supplier_id: SupplierId, payload: StatusUpdate, database: Data
     return find_supplier(database, supplier_id)
 
 
-@router.delete("/{supplier_id}")
+@router.delete("/{supplier_id}", response_model=DeleteConfirmation)
 def delete_supplier(supplier_id: SupplierId, database: Database):
     find_supplier(database, supplier_id)
     database.remove(doc_ids=[supplier_id])

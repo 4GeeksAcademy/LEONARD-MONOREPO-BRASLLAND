@@ -28,6 +28,7 @@ from services.api.routers.inventory import router as inventory_router
 from services.api.routers.telemetry import router as telemetry_router
 from services.api.app.database import engine
 from services.api.app import models as inventory_models
+from pydantic import BaseModel
 from sqlmodel import SQLModel
 from services.api.seed import seed_database
 
@@ -121,12 +122,34 @@ def expire_cache() -> None:
             del analyses[token]
 
 
-@app.get("/health")
+class HealthRead(BaseModel):
+    status: str
+
+
+class SatisfactionRead(BaseModel):
+    scored_cases: int
+    closed_cases: int
+    average: float | None
+    scores: dict[str, int]
+
+
+class AnalysisRead(BaseModel):
+    total_records: int
+    valid_records: int
+    invalid_records: int
+    invalid_breakdown: dict[str, int]
+    categories: dict[str, int]
+    statuses: dict[str, int]
+    satisfaction: SatisfactionRead
+    rule_labels: dict[str, str]
+
+
+@app.get("/health", response_model=HealthRead)
 def health():
     return {"status": "ok"}
 
 
-@app.post("/api/incidents/analyze")
+@app.post("/api/incidents/analyze", response_model=AnalysisRead)
 def analyze_incidents(current: CurrentUser, response: Response, file: UploadFile = File(...)):
     if not file.filename or not file.filename.lower().endswith(".csv"):
         raise HTTPException(415, "Select a .csv file encoded as UTF-8.")
@@ -147,7 +170,10 @@ def analyze_incidents(current: CurrentUser, response: Response, file: UploadFile
     return {**summary, "rule_labels": RULES}
 
 
-@app.get("/api/incidents/results/export")
+@app.get(
+    "/api/incidents/results/export", response_model=None,
+    response_class=Response, responses={200: {"content": {"text/csv": {}}}},
+)
 def export_results(current: CurrentUser):
     with cache_lock:
         expire_cache()
@@ -160,7 +186,7 @@ def export_results(current: CurrentUser):
     )
 
 
-@app.get("/")
+@app.get("/", response_model=None, include_in_schema=False)
 def home():
     return RedirectResponse("/backoffice/")
 

@@ -42,9 +42,21 @@ class SupplierCreate(BaseModel):
         return self
 
 
-class Supplier(SupplierCreate):
+class Supplier(BaseModel):
     id: int
+    name: str
+    country: Country
+    categories: list[Category]
+    rate_per_unit: float
+    currency: Literal["COP", "USD"]
+    status: Status
+    contact_email: EmailStr | None = None
+    notes: str | None = None
     updated_at: datetime
+
+
+class DeleteConfirmation(BaseModel):
+    detail: str
 
 
 class RateUpdate(BaseModel):
@@ -75,10 +87,24 @@ class IncidentCreate(BaseModel):
         return self
 
 
-class Incident(IncidentCreate):
+class Incident(BaseModel):
     id: int
+    title: str
+    description: str
+    category: IncidentCategory
+    status: IncidentStatus
+    origin: IncidentOrigin
+    branch: IncidentBranch
     created_at: datetime
     updated_at: datetime
+
+
+class IncidentSummary(BaseModel):
+    total: int
+    by_status: dict[str, int]
+    by_category: dict[str, int]
+    by_origin: dict[str, int]
+    by_branch: dict[str, int]
 
 
 class IncidentStatusUpdate(BaseModel):
