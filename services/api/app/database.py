@@ -4,7 +4,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import HTTPException
-from sqlalchemy.engine import Engine, URL
+from sqlalchemy.engine import Engine, URL, make_url
 from sqlmodel import Session, create_engine
 
 
@@ -46,11 +46,10 @@ def create_inventory_engine(database_url: str | URL | None) -> Engine | None:
         database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
     elif isinstance(database_url, str) and database_url.startswith("postgres://"):
         database_url = database_url.replace("postgres://", "postgresql+psycopg://", 1)
-    return create_engine(
-        database_url,
-        pool_pre_ping=True,
-        connect_args={"prepare_threshold": None},
-    )
+    options = {}
+    if make_url(database_url).get_backend_name() == "postgresql":
+        options["connect_args"] = {"prepare_threshold": None}
+    return create_engine(database_url, pool_pre_ping=True, **options)
 
 
 engine = create_inventory_engine(get_inventory_database_url())

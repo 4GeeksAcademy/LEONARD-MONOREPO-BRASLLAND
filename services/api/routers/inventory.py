@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from sqlmodel import Session, select
 
 from services.api.app.database import get_db
+from services.api.cache import TTLCache
 from services.api.app.models import Ingredient, IngredientEntry, IngredientExit
 from services.api.app.schemas import (
     IngredientCreate, IngredientEntryCreate, IngredientEntryRead, IngredientExitCreate,
@@ -21,6 +22,8 @@ from services.api.auth import CurrentUser
 router = APIRouter(prefix="/inventory", tags=["Inventory"])
 DatabaseSession = Annotated[Session, Depends(get_db)]
 IngredientId = Annotated[int, Path(gt=0)]
+# Shared (not per-user) catalogue + stock per location. Key = location_id; cleared on any stock/product write.
+products_cache = TTLCache(ttl=15, max_entries=32)
 
 
 def stock_totals(session: Session, location_id: str) -> dict[int, Decimal]:
@@ -77,9 +80,12 @@ def order_response(order, order_type: str) -> IngredientOrderRead:
 
 @router.get("/products", response_model=list[IngredientRead])
 def list_ingredients(session: DatabaseSession, location_id: LocationId):
-    totals = stock_totals(session, location_id)
-    ingredients = session.exec(select(Ingredient).order_by(Ingredient.name, Ingredient.id)).all()
-    return [ingredient_response(item, totals.get(item.id, Decimal(0))) for item in ingredients]
+    def build() -> list[IngredientRead]:
+        totals = stock_totals(session, location_id)
+        ingredients = session.exec(select(Ingredient).order_by(Ingredient.name, Ingredient.id)).all()
+        return [ingredient_response(item, totals.get(item.id, Decimal(0))) for item in ingredients]
+
+    return products_cache.get_or_set(location_id, build)
 
 
 @router.post("/products", response_model=IngredientRead, status_code=201)
@@ -92,6 +98,7 @@ def create_ingredient(payload: IngredientCreate, session: DatabaseSession, curre
         session.rollback()
         raise HTTPException(409, "An ingredient with this SKU already exists.") from error
     session.refresh(ingredient)
+    products_cache.clear()
     return ingredient_response(ingredient, Decimal(0))
 
 
@@ -116,6 +123,7 @@ def create_inbound_order(
     session.add(order)
     session.commit()
     session.refresh(order)
+    products_cache.clear()
     return IngredientEntryRead(
         id=order.id,
         ingredient_id=order.ingredient_id,
@@ -145,6 +153,7 @@ def create_outbound_order(
     session.add(order)
     session.commit()
     session.refresh(order)
+    products_cache.clear()
     return IngredientExitRead(
         id=order.id,
         ingredient_id=order.ingredient_id,

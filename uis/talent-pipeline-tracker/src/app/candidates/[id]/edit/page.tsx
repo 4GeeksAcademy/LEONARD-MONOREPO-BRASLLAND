@@ -1,10 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { use } from "react";
-import { CandidateForm } from "@/components/candidates/CandidateForm";
 import { getCandidateById } from "@/services/trackerApi";
 import { useApiData } from "@/hooks/useApiData";
+
+// The form is the heaviest component in the app and is only needed on create/edit routes.
+const CandidateForm = dynamic(
+  () => import("@/components/candidates/CandidateForm").then((module) => module.CandidateForm),
+  { loading: () => <p className="auth-status" role="status">Loading form...</p> },
+);
 
 type EditCandidatePageProps = {
   params: Promise<{

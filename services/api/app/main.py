@@ -1,4 +1,5 @@
 import io
+import logging
 import os
 import sys
 import threading
@@ -32,6 +33,13 @@ from sqlmodel import SQLModel
 from services.api.seed import seed_database
 
 
+timing_logger = logging.getLogger("api.timing")
+if not timing_logger.handlers:
+    timing_handler = logging.StreamHandler()
+    timing_handler.setFormatter(logging.Formatter("%(message)s"))
+    timing_logger.addHandler(timing_handler)
+    timing_logger.setLevel(logging.INFO)
+    timing_logger.propagate = False
 MAX_UPLOAD_BYTES = 256 * 1024 * 1024
 SESSION_TTL = 3600
 MAX_SESSIONS = 128
@@ -85,6 +93,16 @@ app = FastAPI(
     dependencies=[Depends(require_authentication)],
 )
 app.add_middleware(UploadLimitMiddleware)
+
+
+@app.middleware("http")
+async def timing_middleware(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration = (time.perf_counter() - start) * 1000
+    timing_logger.info("%s %s -> %s | %.1fms", request.method, request.url.path, response.status_code, duration)
+    return response
+
 app.include_router(public_router)
 app.include_router(auth_router)
 app.include_router(users_router)

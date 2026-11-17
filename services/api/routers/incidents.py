@@ -8,6 +8,7 @@ from tinydb import TinyDB
 from shared.incidents import (
     INCIDENT_BRANCHES, INCIDENT_CATEGORIES, INCIDENT_ORIGINS, INCIDENT_STATUSES,
 )
+from services.api.cache import TTLCache
 from services.api.database import get_database
 from services.api.models import (
     Incident, IncidentCreate, IncidentOrigin, IncidentCategory,
@@ -18,6 +19,8 @@ from services.api.models import (
 router = APIRouter(prefix="/api/incidents", tags=["Incidents"])
 Database = Annotated[TinyDB, Depends(get_database)]
 IncidentId = Annotated[int, Path(gt=0)]
+# Dashboard counters tolerate a few seconds of lag; every write below clears the entry immediately.
+summary_cache = TTLCache(ttl=30, max_entries=1)
 TRANSITIONS = {
     "open": {"in_progress", "discarded"},
     "in_progress": {"resolved", "discarded"},
@@ -48,6 +51,7 @@ def create_incident(payload: IncidentCreate, database: Database):
         "created_at": now,
         "updated_at": now,
     })
+    summary_cache.clear()
     return find_incident(database, incident_id)
 
 
@@ -69,8 +73,7 @@ def list_incidents(
     ]
 
 
-@router.get("/summary")
-def incident_summary(database: Database):
+def build_summary(database: TinyDB) -> dict:
     records = database.table("incidents").all()
     metrics = {
         "status": INCIDENT_STATUSES,
@@ -90,6 +93,11 @@ def incident_summary(database: Database):
     }
 
 
+@router.get("/summary")
+def incident_summary(database: Database):
+    return summary_cache.get_or_set("summary", lambda: build_summary(database))
+
+
 @router.get("/{incident_id}", response_model=Incident)
 def get_incident(incident_id: IncidentId, database: Database):
     return find_incident(database, incident_id)
@@ -107,4 +115,5 @@ def update_incident_status(
         "status": next_status,
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }, doc_ids=[incident_id])
+    summary_cache.clear()
     return find_incident(database, incident_id)
