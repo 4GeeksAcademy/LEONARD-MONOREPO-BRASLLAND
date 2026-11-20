@@ -7,6 +7,26 @@
 
 ---
 
+## Supabase Storage
+
+The storage schema is defined in
+[`services/api/sql/telemetry_events.sql`](../../services/api/sql/telemetry_events.sql).
+Apply it through the Supabase SQL Editor before enabling the persistent receiver;
+the API does not automatically apply this script.
+
+`public.telemetry_events` stores immutable event facts using eight columns:
+`id`, `timestamp`, `service`, `event_type`, `level`, `value`, `message`, and
+`tags`. The `id` column defaults to a generated UUID; the receiver stores each
+event's `eventId` as `id` so retried batches are idempotent. B-tree indexes on
+`timestamp` and `event_type` support time-window and event-type analysis; a GIN
+index on `tags` supports JSONB containment queries, including location dimensions.
+
+RLS is enabled. Browser roles have no direct table access; ingestion goes through
+the existing backend endpoint using a server-only database connection.
+`service_role` has insert and read privileges, but no update, delete, or truncate
+privileges. There are no application update or delete operations for telemetry.
+Database owners retain administrative privileges.
+
 ## Executive Summary
 
 This telemetry plan defines a comprehensive data capture strategy for Brasaland's inventory management system and its backoffice operations. The plan identifies **mandatory metrics** required from day one, plus **21 additional instrumentation opportunities** spanning inventory operations, authentication, performance, errors, and user navigation. Every event is justified by a specific business or operational hypothesis and decision it enables.

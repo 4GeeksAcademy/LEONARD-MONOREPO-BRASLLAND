@@ -19,11 +19,12 @@ dependencies = [
 	"python-dotenv>=1.2.4",
 	"sqlmodel>=0.0.24,<1",
 	"psycopg[binary]>=3.2,<4",
+	"pandas>=2.0.0,<3",
 ]
 
 [project.scripts]
 seed = "services.api.seed:main"
 
 [tool.setuptools]
-packages = ["services.api", "services.api.app", "services.api.routers"]
+packages = ["services.api", "services.api.app", "services.api.routers", "services.api.telemetry"]
 package-dir = {"services.api" = "."}

@@ -30,6 +30,7 @@ services:
       additional_contexts:
         packages: ./packages
         shared: ./shared
+        telemetry_schemas: ./docs/telemetry
     env_file:
       - .env
     environment:
