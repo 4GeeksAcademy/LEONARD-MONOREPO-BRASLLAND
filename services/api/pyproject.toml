@@ -20,6 +20,8 @@ dependencies = [
 	"sqlmodel>=0.0.24,<1",
 	"psycopg[binary]>=3.2,<4",
 	"pandas>=2.0.0,<3",
+	"prefect>=3.0.0,<4",
+	"prefect-sqlalchemy>=0.3.0,<1",
 ]
 
 [project.scripts]
