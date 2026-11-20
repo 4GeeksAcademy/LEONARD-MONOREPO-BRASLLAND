@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useMemo } from "react";
 import { CandidateFilters } from "@/components/candidates/CandidateFilters";
 import { CandidateTable } from "@/components/candidates/CandidateTable";
+import { formatEnumLabel } from "@/lib/format";
 import { getCandidates } from "@/services/trackerApi";
 import { useApiData } from "@/hooks/useApiData";
 
@@ -23,6 +24,21 @@ export default function HomePage({ searchParams }: HomePageProps) {
       search: params.search,
       limit: 100,
   }));
+
+  // One pass over up to 100 rows, only recomputed when a new response arrives (not on every re-render).
+  const pipelineSummary = useMemo(() => {
+    const byStage = new Map<string, number>();
+    let experienceTotal = 0;
+    for (const candidate of response?.data ?? []) {
+      byStage.set(candidate.stage, (byStage.get(candidate.stage) ?? 0) + 1);
+      experienceTotal += candidate.experience_years;
+    }
+    const count = response?.data.length ?? 0;
+    return {
+      stages: [...byStage].sort((a, b) => b[1] - a[1]),
+      averageExperience: count ? experienceTotal / count : 0,
+    };
+  }, [response?.data]);
 
   if (error) {
     return (
@@ -60,6 +76,11 @@ export default function HomePage({ searchParams }: HomePageProps) {
 
       <CandidateFilters />
       <p className="text-sm text-slate-600">Showing {response.data.length} of {response.total} candidates.</p>
+      <p className="text-xs text-slate-500">
+        Average experience {pipelineSummary.averageExperience.toFixed(1)} years
+        {pipelineSummary.stages.length ? " · " : ""}
+        {pipelineSummary.stages.map(([stage, total]) => `${formatEnumLabel(stage)}: ${total}`).join(" · ")}
+      </p>
       <CandidateTable candidates={response.data} />
     </main>
   );

@@ -1,5 +1,11 @@
+import dynamic from "next/dynamic";
 import Link from "next/link";
-import { CandidateForm } from "@/components/candidates/CandidateForm";
+
+// The form is the heaviest component in the app and is only needed on create/edit routes.
+const CandidateForm = dynamic(
+  () => import("@/components/candidates/CandidateForm").then((module) => module.CandidateForm),
+  { loading: () => <p className="auth-status" role="status">Loading form...</p> },
+);
 
 export default function NewCandidatePage() {
   return (
