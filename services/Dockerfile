@@ -4,6 +4,7 @@ WORKDIR /workspace
 COPY . /workspace/services
 COPY --from=packages . /workspace/packages
 COPY --from=shared . /workspace/shared
+COPY --from=telemetry_schemas /event-schemas.json /workspace/docs/telemetry/event-schemas.json
 
 RUN pip install --no-cache-dir uv \
     && uv pip install --system -r /workspace/services/api/requirements.txt

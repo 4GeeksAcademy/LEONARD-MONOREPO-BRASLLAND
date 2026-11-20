@@ -65,6 +65,44 @@ creation via `SQLModel.metadata.create_all` is for this learning environment onl
 Product reads require a Brasaland `location_id` (`COL-01` through `COL-10` or
 `FLA-01` through `FLA-04`); `current_stock` is calculated only for that location.
 
+## Telemetry Storage
+
+Before enabling telemetry persistence, run
+[`sql/telemetry_events.sql`](sql/telemetry_events.sql) in the Supabase SQL Editor
+as the database owner. The script creates the eight-column
+`public.telemetry_events` table and indexes on `timestamp`, `event_type`, and
+`tags` (GIN), in one transaction. Run it once; an existing table causes an error
+rather than silently accepting a potentially incompatible schema.
+
+RLS is enabled without browser-facing policies. `anon`, `authenticated`, and
+`PUBLIC` have no table privileges; `service_role` has only `INSERT` and `SELECT`.
+The backend's existing direct Postgres connection must use the table owner or a
+server-only role permitted to insert. A non-owner role without `BYPASSRLS` also
+needs an explicit INSERT policy. Never expose database credentials to the
+frontend. Events are append-only in application code; there are no update or
+delete endpoints. Database owners can still perform administrative maintenance.
+
+Verify the schema after applying the script:
+
+```sql
+SELECT column_name, data_type, is_nullable, column_default
+FROM information_schema.columns
+WHERE table_schema = 'public' AND table_name = 'telemetry_events'
+ORDER BY ordinal_position;
+
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE schemaname = 'public' AND tablename = 'telemetry_events';
+
+SELECT relrowsecurity
+FROM pg_class
+WHERE oid = 'public.telemetry_events'::regclass;
+```
+
+Expect eight columns, the primary-key index plus three analytical indexes, and
+`relrowsecurity = true`. This SQL script is separate from inventory's
+`SQLModel.metadata.create_all`; starting the API does not apply it.
+
 ## Endpoints
 
 | Endpoint | Contract |
